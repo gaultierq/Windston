@@ -2,27 +2,57 @@ package com.coderouge.windston
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.Menu
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.HashSet
+import android.view.MenuItem
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.location.LocationManager
+import android.net.Uri
+
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var mFusedLocationClient: FusedLocationProviderClient
     private lateinit var mMap: GoogleMap
+
+    private var PRIVATE_MODE = 0
+    private val PREF_NAME = "waypoints"
+    private val PERM_REQ_CODE = 32
+    private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy hh:mm:ss")
+    private var mLocationManager : LocationManager? = null
+
+    companion object {
+        private fun join(set: Set<String>?, sep: String): String? {
+            if (set == null) return null
+            val sb = StringBuilder();
+            val it = set.iterator();
+
+            if(it.hasNext()) {
+                sb.append(it.next());
+            }
+            while(it.hasNext()) {
+                sb.append(sep).append(it.next());
+            }
+            return  sb.toString();
+        }
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,52 +62,108 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        mLocationManager = getSystemService(LOCATION_SERVICE) as LocationManager?;
+
         this.findViewById<FloatingActionButton>(R.id.fab).setOnClickListener { v ->
-            run {
-                Toast.makeText(this, "coucou", Toast.LENGTH_LONG).show()
-            }
+
+            onFloatClick()
         }
     }
 
-    private val PERM_REQ_CODE = 32
+    @SuppressLint("MissingPermission")
+    private fun onFloatClick() {
+        run {
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
+
+            if (canAccessLocation()) {
+                val location = mLocationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+                addWaypoint(location?.latitude, location?.longitude, DATE_FORMAT.format(Date()))
+                showToast("waypoint added")
+            }
+            else {
+                showToast("cannot access location")
+            }
+
+        }
+    }
+
+    private fun showToast(s: String) {
+        Toast.makeText(this, s, Toast.LENGTH_LONG).show()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        val inflater = menuInflater
+        inflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.getItemId()) {
+            R.id.action_send -> sendEmail()
+        }
+        return true
+    }
+
+    private fun sendEmail() {
+        val mailto = "mailto:geopos@coderouge.ovh" +
+                "?subject=" + Uri.encode("Sent from Windston") +
+                "&body=" + Uri.encode(bodyText())
+
+        val emailIntent = Intent(Intent.ACTION_SENDTO)
+        emailIntent.data = Uri.parse(mailto)
+
+        try {
+            startActivity(emailIntent)
+            purge()
+        } catch (e: ActivityNotFoundException) {
+            //TODO: Handle case where no email app is available
+            showToast("cannot send email")
+        }
+    }
+
+    private fun bodyText(): String? {
+        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
+        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
+        return join(waypoints, "\n===\n")
+    }
+
+    private fun addWaypoint(lat: Double?, lng: Double?, date: String?) {
+        if (lat == null || lng == null) {
+            showToast("location not available")
+            return
+        }
+        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
+        val editor = sharedPref.edit()
+        val set = sharedPref.getStringSet(PREF_NAME, HashSet<String>())
+        set.add("latlng: $lat, $lng\ndate: $date")
+        editor.putStringSet(PREF_NAME, set)
+        editor.apply()
+    }
+
+    private fun purge() {
+        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
+        val editor = sharedPref.edit()
+        editor.putStringSet(PREF_NAME, HashSet<String>())
+        editor.apply()
+    }
+
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        // Add a marker in Sydney and move the camera
-//        val sydney = LatLng(-34.0, 151.0)
-//        mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-//        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
+        if (!canAccessLocation()) {
             // Permission is not granted
             // Should we show an explanation?
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.ACCESS_FINE_LOCATION)) {
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
             } else {
                 // No explanation needed, we can request the permission.
                 ActivityCompat.requestPermissions(this,
                     arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                     PERM_REQ_CODE
                 )
-
-                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                // app-defined int constant. The callback method gets the
-                // result of the request.
             }
 
         }
@@ -85,6 +171,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             showMyLocation()
         }
     }
+
+    private fun canAccessLocation() = (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED)
 
     @SuppressLint("MissingPermission")
     private fun showMyLocation() {
