@@ -15,11 +15,13 @@
         android:name="com.google.android.gms.maps.SupportMapFragment">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
+            xmlns:app="http://schemas.android.com/apk/res-auto"
             android:id="@+id/fab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end|bottom"
             android:src="@drawable/ic_gps_fixed_black_24dp"
+            app:backgroundTint="@android:color/white"
             android:layout_margin="16dp" />
 
     </fragment>

@@ -107,9 +107,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun sendEmail() {
+        val bodyText = bodyText()
+        if (bodyText.isNullOrEmpty()) {
+            showToast("nothing to send")
+            return
+        }
         val mailto = "mailto:geopos@coderouge.ovh" +
                 "?subject=" + Uri.encode("Sent from Windston") +
-                "&body=" + Uri.encode(bodyText())
+                "&body=" + Uri.encode(bodyText)
 
         val emailIntent = Intent(Intent.ACTION_SENDTO)
         emailIntent.data = Uri.parse(mailto)
