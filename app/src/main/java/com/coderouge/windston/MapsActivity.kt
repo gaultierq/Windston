@@ -64,7 +64,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         mLocationManager = getSystemService(LOCATION_SERVICE) as LocationManager?;
-
+        DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("gmt"));
         this.findViewById<FloatingActionButton>(R.id.fab).setOnClickListener { v ->
 
             onFloatClick()
