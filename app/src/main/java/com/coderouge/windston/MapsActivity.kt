@@ -25,6 +25,10 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.location.LocationManager
 import android.net.Uri
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
 
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -35,7 +39,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var PRIVATE_MODE = 0
     private val PREF_NAME = "waypoints"
     private val PERM_REQ_CODE = 32
-    private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy hh:mm:ss")
+    private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy HH:mm:ss")
     private var mLocationManager : LocationManager? = null
 
     companion object {
@@ -79,7 +83,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             if (canAccessLocation()) {
                 val location = mLocationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
-                addWaypoint(location?.latitude, location?.longitude, DATE_FORMAT.format(Date()))
+                val lat = location?.latitude
+                val lng = location?.longitude
+
+                addWaypoint(lat, lng, DATE_FORMAT.format(Date()))
+
+                if (lat != null && lng != null) {
+                    showWaypoint(lat, lng)
+                }
+
+
                 showToast("waypoint added")
             }
             else {
@@ -141,7 +154,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
         val editor = sharedPref.edit()
-        val set = sharedPref.getStringSet(PREF_NAME, HashSet<String>())
+        val set = HashSet(sharedPref.getStringSet(PREF_NAME, HashSet<String>()))
         set.add("latlng: $lat, $lng\ndate: $date")
         editor.putStringSet(PREF_NAME, set)
         editor.apply()
@@ -152,6 +165,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val editor = sharedPref.edit()
         editor.putStringSet(PREF_NAME, HashSet<String>())
         editor.apply()
+    }
+
+    private fun getWaypoints(): List<List<String>> {
+        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
+        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
+        return waypoints.orEmpty().map { wps -> extLatLng(wps) }
+    }
+
+    private fun extLatLng(wps: String): List<String> {
+        return wps
+            .split('\n')
+            .get(0)
+            .substringAfter("latlng: ")
+            .split(", ")
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -175,10 +202,27 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         else {
             showMyLocation()
         }
+        getWaypoints().forEach { arr -> run {
+            val lat = java.lang.Double.parseDouble(arr[0])
+            val lng = java.lang.Double.parseDouble(arr[1])
+
+            showWaypoint(lat, lng)
+        }
+        }
+    }
+
+    private fun showWaypoint(lat: Double, lng: Double): Marker? {
+
+        return mMap.addMarker(
+            MarkerOptions().position(LatLng(lat, lng)).icon(
+                BitmapDescriptorFactory
+                    .defaultMarker(BitmapDescriptorFactory.HUE_RED)
+            )
+        );
     }
 
     private fun canAccessLocation() = (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED)
+            == PackageManager.PERMISSION_GRANTED)
 
     @SuppressLint("MissingPermission")
     private fun showMyLocation() {
