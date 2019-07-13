@@ -25,6 +25,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.location.LocationManager
 import android.net.Uri
+import android.widget.CompoundButton
+import android.widget.Switch
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
@@ -109,6 +111,26 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         val inflater = menuInflater
         inflater.inflate(R.menu.main_menu, menu)
+
+        var item = menu?.findItem(R.id.switch_item);
+        var switch = item?.actionView?.findViewById<Switch>(R.id.switchForActionBar)
+
+        switch?.isChecked = Utils.isRequestingLocationUpdates(this)
+
+        switch?.setOnCheckedChangeListener { view, isChecked ->
+            showToast("checked = " + isChecked)
+            Utils.setRequestingLocationUpdates(this, isChecked)
+            Intent(this, LocationUpdatesService::class.java).also { intent ->
+                if (isChecked) {
+                    startService(intent)
+                }
+                else {
+                    stopService(intent)
+                }
+            }
+
+        }
+
         return true
     }
 
@@ -245,4 +267,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+}
+
+private fun Switch?.setOnCheckedChangeListener() {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
 }
