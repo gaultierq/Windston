@@ -2,6 +2,7 @@ package com.coderouge.windston
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +23,7 @@ import java.util.*
 import kotlin.collections.HashSet
 import android.view.MenuItem
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.location.LocationManager
 import android.net.Uri
@@ -75,6 +77,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
             onFloatClick()
         }
+
     }
 
     @SuppressLint("MissingPermission")
@@ -115,11 +118,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         var item = menu?.findItem(R.id.switch_item);
         var switch = item?.actionView?.findViewById<Switch>(R.id.switchForActionBar)
 
-        switch?.isChecked = Utils.isRequestingLocationUpdates(this)
+        switch?.isChecked = isMyServiceRunning(LocationUpdatesService::class.java)
 
         switch?.setOnCheckedChangeListener { view, isChecked ->
-            showToast("checked = " + isChecked)
-            Utils.setRequestingLocationUpdates(this, isChecked)
+
             Intent(this, LocationUpdatesService::class.java).also { intent ->
                 if (isChecked) {
                     startService(intent)
@@ -132,6 +134,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         return true
+    }
+
+    private fun isMyServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        for (service in manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.name == service.service.className) {
+                return true
+            }
+        }
+        return false
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

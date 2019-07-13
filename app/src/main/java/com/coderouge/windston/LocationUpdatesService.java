@@ -149,12 +149,16 @@ public class LocationUpdatesService extends Service {
             mNotificationManager.createNotificationChannel(mChannel);
         }
 
-        startForeground(NOTIFICATION_ID, getNotification());
+
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "Service started");
+
+        startForeground(NOTIFICATION_ID, getNotification());
+
+        mNotificationManager.notify(NOTIFICATION_ID, getNotification());
 
         requestLocationUpdates();
 
@@ -163,6 +167,7 @@ public class LocationUpdatesService extends Service {
 
     @Override
     public void onDestroy() {
+        Log.i(TAG, "Service destroyed");
         removeLocationUpdates();
         stopForeground(true);
 //        mServiceHandler.removeCallbacksAndMessages(null);
@@ -272,6 +277,21 @@ public class LocationUpdatesService extends Service {
         mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
         mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    @Override
+    public void onLowMemory() {
+        Log.i(TAG, "onLowMemory");
+        //Send broadcast to the Activity to kill this service and restart it.
+        super.onLowMemory();
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent)
+    {
+        Log.i(TAG, "onTaskRemoved");
+        //Send broadcast to the Activity to restart the service
+        super.onDestroy();
     }
 
 }

@@ -17,7 +17,9 @@
 package com.coderouge.windston;
 
 
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.location.Location;
 import android.preference.PreferenceManager;
 
@@ -63,4 +65,30 @@ class Utils {
 //        return context.getString(R.string.location_updated,
 //                DateFormat.getDateTimeInstance().format(new Date()));
     }
+
+    public static void autoLaunchVivo(Context context) {
+        try {
+            Intent intent = new Intent();
+            intent.setComponent(new ComponentName("com.iqoo.secure",
+                    "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"));
+            context.startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent();
+                intent.setComponent(new ComponentName("com.vivo.permissionmanager",
+                        "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"));
+                context.startActivity(intent);
+            } catch (Exception ex) {
+                try {
+                    Intent intent = new Intent();
+                    intent.setClassName("com.iqoo.secure",
+                            "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager");
+                    context.startActivity(intent);
+                } catch (Exception exx) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    }
+
 }
