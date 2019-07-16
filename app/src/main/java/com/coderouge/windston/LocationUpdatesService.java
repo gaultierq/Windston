@@ -16,25 +16,19 @@
 
 package com.coderouge.windston;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.Service;
+import android.app.*;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.location.Location;
-import android.os.Build;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.IBinder;
-import android.os.Looper;
+import android.os.*;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.util.Log;
 
+import androidx.room.Room;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -42,6 +36,10 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import kotlinx.coroutines.GlobalScope;
+
+import java.util.Date;
+import java.util.List;
 
 /**
  * A bound and started service that is promoted to a foreground service when location updates have
@@ -116,6 +114,9 @@ public class LocationUpdatesService extends Service {
      */
     private Location mLocation;
 
+    private AppDatabase db;
+
+
     public LocationUpdatesService() {
     }
 
@@ -149,6 +150,10 @@ public class LocationUpdatesService extends Service {
             mNotificationManager.createNotificationChannel(mChannel);
         }
 
+        db = Room.databaseBuilder(
+                this,
+                AppDatabase.class, "main-db"
+        ).build();
 
     }
 
@@ -170,8 +175,6 @@ public class LocationUpdatesService extends Service {
         Log.i(TAG, "Service destroyed");
         removeLocationUpdates();
         stopForeground(true);
-//        mServiceHandler.removeCallbacksAndMessages(null);
-
     }
 
     @Nullable
@@ -255,7 +258,7 @@ public class LocationUpdatesService extends Service {
         }
     }
 
-    private void onNewLocation(Location location) {
+    private void onNewLocation(final Location location) {
         Log.i(TAG, "New location: " + location);
 
         mLocation = location;
@@ -267,6 +270,9 @@ public class LocationUpdatesService extends Service {
 
         // Update notification content if running as a foreground service.
         mNotificationManager.notify(NOTIFICATION_ID, getNotification());
+
+        InsertAsyncTask task = new InsertAsyncTask(new Waypoint(location.getLatitude(), location.getLongitude(), new Date()));
+        task.execute();
     }
 
     /**
@@ -292,6 +298,22 @@ public class LocationUpdatesService extends Service {
         Log.i(TAG, "onTaskRemoved");
         //Send broadcast to the Activity to restart the service
         super.onDestroy();
+    }
+
+    private static class InsertAsyncTask extends AsyncTask<Void, Void, Integer> {
+
+        private Waypoint waypoint;
+
+        public InsertAsyncTask(Waypoint waypoint) {
+            this.waypoint = waypoint;
+        }
+
+        @Override
+        protected Integer doInBackground(Void... params) {
+            WindstonApp.database.waypointDao().insertAll(new Waypoint(this.waypoint.getLat(), this.waypoint.getLng(), new Date()));
+            return null;
+        }
+
     }
 
 }

@@ -3,36 +3,39 @@ package com.coderouge.windston
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
-import android.content.SharedPreferences
-import android.content.pm.PackageManager
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.view.Menu
-import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import java.text.SimpleDateFormat
-import java.util.*
-import kotlin.collections.HashSet
-import android.view.MenuItem
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
-import android.widget.CompoundButton
+import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Switch
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.room.Room
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.HashSet
 
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -91,14 +94,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val lat = location?.latitude
                 val lng = location?.longitude
 
-                addWaypoint(lat, lng, DATE_FORMAT.format(Date()))
 
                 if (lat != null && lng != null) {
+                    addWaypoint(lat, lng, Date())
                     showWaypoint(lat, lng)
+                    showToast("waypoint added")
+                }
+                else {
+                    showToast("missing location")
                 }
 
 
-                showToast("waypoint added")
+
             }
             else {
                 showToast("cannot access location")
@@ -115,8 +122,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val inflater = menuInflater
         inflater.inflate(R.menu.main_menu, menu)
 
-        var item = menu?.findItem(R.id.switch_item);
-        var switch = item?.actionView?.findViewById<Switch>(R.id.switchForActionBar)
+        val item = menu?.findItem(R.id.switch_item);
+        val switch = item?.actionView?.findViewById<Switch>(R.id.switchForActionBar)
 
         switch?.isChecked = isMyServiceRunning(LocationUpdatesService::class.java)
 
@@ -181,17 +188,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         return join(waypoints, "\n===\n")
     }
 
-    private fun addWaypoint(lat: Double?, lng: Double?, date: String?) {
-        if (lat == null || lng == null) {
-            showToast("location not available")
-            return
+    private fun addWaypoint(lat: Double, lng: Double, date: Date) {
+
+        GlobalScope.launch {
+            WindstonApp.database.waypointDao().insertAll(Waypoint( lat, lng, date))
         }
-        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
-        val editor = sharedPref.edit()
-        val set = HashSet(sharedPref.getStringSet(PREF_NAME, HashSet<String>()))
-        set.add("latlng: $lat, $lng\ndate: $date")
-        editor.putStringSet(PREF_NAME, set)
-        editor.apply()
+
     }
 
     private fun purge() {
@@ -201,11 +203,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         editor.apply()
     }
 
-    private fun getWaypoints(): List<List<String>> {
-        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
-        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
-        return waypoints.orEmpty().map { wps -> extLatLng(wps) }
-    }
 
     private fun extLatLng(wps: String): List<String> {
         return wps
@@ -236,12 +233,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         else {
             showMyLocation()
         }
-        getWaypoints().forEach { arr -> run {
-            val lat = java.lang.Double.parseDouble(arr[0])
-            val lng = java.lang.Double.parseDouble(arr[1])
 
-            showWaypoint(lat, lng)
-        }
+        GlobalScope.launch {
+
+            WindstonApp.database.waypointDao().getAll().forEach { wp -> run {
+                withContext(Dispatchers.Main) {
+                    showWaypoint(wp.lat, wp.lng)
+                }
+
+            }
+            }
         }
     }
 
