@@ -18,28 +18,21 @@ package com.coderouge.windston;
 
 import android.app.*;
 import android.content.Intent;
-import android.content.res.Configuration;
 import android.location.Location;
-import android.os.*;
-import android.widget.Toast;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.os.IBinder;
+import android.os.Looper;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import android.util.Log;
-
-import androidx.room.Room;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.*;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import kotlinx.coroutines.GlobalScope;
 
 import java.util.Date;
-import java.util.List;
 
 /**
  * A bound and started service that is promoted to a foreground service when location updates have
@@ -114,14 +107,13 @@ public class LocationUpdatesService extends Service {
      */
     private Location mLocation;
 
-    private AppDatabase db;
-
 
     public LocationUpdatesService() {
     }
 
     @Override
     public void onCreate() {
+        Log.i(TAG, "Service created");
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         mLocationCallback = new LocationCallback() {
@@ -150,10 +142,6 @@ public class LocationUpdatesService extends Service {
             mNotificationManager.createNotificationChannel(mChannel);
         }
 
-        db = Room.databaseBuilder(
-                this,
-                AppDatabase.class, "main-db"
-        ).build();
 
     }
 
@@ -215,13 +203,21 @@ public class LocationUpdatesService extends Service {
      * Returns the {@link NotificationCompat} used as part of the foreground service.
      */
     private Notification getNotification() {
-        Intent intent = new Intent(this, LocationUpdatesService.class);
+//        Intent intent = new Intent(this, LocationUpdatesService.class);
 
         CharSequence text = Utils.getLocationText(mLocation);
 
         // Extra to help us figure out if we arrived in onStartCommand via the notification or not.
-        intent.putExtra(EXTRA_STARTED_FROM_NOTIFICATION, true);
+//        intent.putExtra(EXTRA_STARTED_FROM_NOTIFICATION, true);
 
+
+        Intent notificationIntent = new Intent(this, MapsActivity.class);
+
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        PendingIntent intent = PendingIntent.getActivity(this, 0,
+                notificationIntent, 0);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
                 .setContentText(text)
@@ -230,7 +226,9 @@ public class LocationUpdatesService extends Service {
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setTicker(text)
+                .setContentIntent(intent)
                 .setWhen(System.currentTimeMillis());
+
 
         // Set the Channel ID for Android O.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -283,6 +281,7 @@ public class LocationUpdatesService extends Service {
         mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
         mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setSmallestDisplacement(500);
     }
 
     @Override
@@ -292,19 +291,11 @@ public class LocationUpdatesService extends Service {
         super.onLowMemory();
     }
 
-    @Override
-    public void onTaskRemoved(Intent rootIntent)
-    {
-        Log.i(TAG, "onTaskRemoved");
-        //Send broadcast to the Activity to restart the service
-        super.onDestroy();
-    }
-
     private static class InsertAsyncTask extends AsyncTask<Void, Void, Integer> {
 
         private Waypoint waypoint;
 
-        public InsertAsyncTask(Waypoint waypoint) {
+        InsertAsyncTask(Waypoint waypoint) {
             this.waypoint = waypoint;
         }
 

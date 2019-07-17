@@ -12,6 +12,12 @@
         android:id="@+id/action_send"
         android:orderInCategory="100"
         android:title="Send"
-        app:showAsAction="always" />
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_purge"
+        android:orderInCategory="100"
+        android:title="Purge"
+        app:showAsAction="never" />
 
 </menu>

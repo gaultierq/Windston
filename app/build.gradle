@@ -12,11 +12,12 @@ android {
     buildToolsVersion "29.0.0"
     defaultConfig {
         applicationId "com.coderouge.windston"
-        minSdkVersion 15
+        minSdkVersion 16
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders = [HOCKEYAPP_APP_ID: "f3f89ca4a5744a369c184cbf9b6433c9"]
     }
     buildTypes {
         release {
@@ -52,5 +53,7 @@ dependencies {
 
     // optional - Kotlin Extensions and Coroutines support for Room
     implementation "androidx.room:room-ktx:$room_version"
+
+    implementation 'net.hockeyapp.android:HockeySDK:5.2.0'
 
 }

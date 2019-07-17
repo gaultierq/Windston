@@ -7,8 +7,12 @@ import androidx.room.Query
 
 @Dao
 interface WaypointDao {
+
     @Query("SELECT * FROM waypoint")
     fun getAll(): List<Waypoint>
+
+    @Query("SELECT * FROM waypoint ORDER BY date DESC limit 10")
+    fun getTail(): List<Waypoint>
 
     @Query("SELECT * FROM waypoint WHERE uid IN (:waypointIds)")
     fun loadAllByIds(waypointIds: IntArray): List<Waypoint>
@@ -18,4 +22,7 @@ interface WaypointDao {
 
     @Delete
     fun delete(waypoint: Waypoint)
+
+    @Query("DELETE FROM waypoint")
+    fun purge()
 }

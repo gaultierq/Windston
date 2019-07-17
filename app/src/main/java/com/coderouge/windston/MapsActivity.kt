@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
@@ -33,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.hockeyapp.android.CrashManager
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.HashSet
@@ -134,6 +136,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     startService(intent)
                 }
                 else {
+                    showToast("stoping service")
                     stopService(intent)
                 }
             }
@@ -156,8 +159,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.getItemId()) {
             R.id.action_send -> sendEmail()
+            R.id.action_purge -> purgeWaypoints()
         }
         return true
+    }
+
+    private fun purgeWaypoints() {
+        GlobalScope.launch {
+            WindstonApp.database.waypointDao().purge()
+        }
     }
 
     private fun sendEmail() {
@@ -212,6 +222,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .split(", ")
     }
 
+    @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
@@ -234,16 +245,42 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             showMyLocation()
         }
 
+
+        if (canAccessLocation()) {
+            val location = mLocationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+            val lat = location?.latitude
+            val lng = location?.longitude
+
+            if (lat != null && lng != null) {
+                mMap.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(lat, lng),
+                        15f
+                    )
+                )
+            }
+
+        }
+
         GlobalScope.launch {
 
-            WindstonApp.database.waypointDao().getAll().forEach { wp -> run {
-                withContext(Dispatchers.Main) {
-                    showWaypoint(wp.lat, wp.lng)
-                }
+            val tail = WindstonApp.database.waypointDao().getTail()
 
-            }
+            withContext(Dispatchers.Main) {
+                tail.forEach { wp ->
+                    run {
+                        showWaypoint(wp.lat, wp.lng)
+
+                    }
+                }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        CrashManager.register(this)
     }
 
     private fun showWaypoint(lat: Double, lng: Double): Marker? {
