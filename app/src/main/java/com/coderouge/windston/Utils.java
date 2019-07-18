@@ -22,22 +22,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.preference.PreferenceManager;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.maps.android.SphericalUtil;
 
 import java.text.DateFormat;
 import java.util.Date;
 
 class Utils {
 
-    static final String KEY_REQUESTING_LOCATION_UPDATES = "requesting_locaction_updates";
 
-    static final String KEY_UPDATE_INTERVAL_MS = "update_interval_ms";
-
-    static final String KEY_SMALLEST_DISPLACEMENT_M = "smallest_displacement_m";
-
-    private static final int MIN_IN_S = 60;
-    private static final int S_IN_MS = 1000;
-    private static final int ONE_MINUTE = MIN_IN_S * S_IN_MS;
-
+    public static final int MIN_IN_S = 60;
+    public static final int S_IN_MS = 1000;
+    public static final int ONE_MINUTE = MIN_IN_S * S_IN_MS;
+    public static final int ONE_NM_IN_M = 1852;
 
     static int getUpdateIntervalMs(Context context) {
         String s = PreferenceManager.getDefaultSharedPreferences(context)
@@ -89,6 +86,10 @@ class Utils {
                 }
             }
         }
+    }
+
+    public static double distanceBetween(LatLng start, LatLng end) {
+        return SphericalUtil.computeDistanceBetween(start, end);
     }
 
 }

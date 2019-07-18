@@ -6,7 +6,6 @@ import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
@@ -14,10 +13,12 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Switch
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.coderouge.windston.Utils.ONE_NM_IN_M
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -36,8 +37,6 @@ import kotlinx.coroutines.withContext
 import net.hockeyapp.android.CrashManager
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashSet
-import kotlin.system.exitProcess
 
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -85,11 +84,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    @SuppressLint("MissingPermission")
+
     private fun onFloatClick() {
         run {
             if (canAccessLocation()) {
-                val location = mLocationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                val location = myLocation();
 
                 val lat = location?.latitude
                 val lng = location?.longitude
@@ -109,6 +108,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
     }
+
+    @SuppressLint("MissingPermission")
+    private fun myLocation() = mLocationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
 
     private fun showToast(s: String) {
         Toast.makeText(this, s, Toast.LENGTH_LONG).show()
@@ -214,10 +216,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+    var target: LatLng? = null;
+
     @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
+        mMap.setOnMapLongClickListener { target ->
+            this.target = target
+
+            mMap.addMarker(
+                MarkerOptions()
+                    .position(target)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
+            )
+            val myLocation = myLocation()
+            var text = ""
+            if (myLocation != null) {
+                 text = "" + Utils.distanceBetween(
+                    target,
+                    LatLng(myLocation.latitude, myLocation.longitude)
+                ) / ONE_NM_IN_M + "nm"
+
+            }
+            findViewById<TextView>(R.id.distanceToTarget).text =  text
+        }
 
         if (!canAccessLocation()) {
             // Permission is not granted

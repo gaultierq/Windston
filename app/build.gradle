@@ -56,4 +56,6 @@ dependencies {
 
     implementation 'net.hockeyapp.android:HockeySDK:5.2.0'
 
+    implementation 'com.google.maps.android:android-maps-utils:0.5+'
+
 }
