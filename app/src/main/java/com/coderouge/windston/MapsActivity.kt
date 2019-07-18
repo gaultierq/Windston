@@ -18,7 +18,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -38,6 +37,7 @@ import net.hockeyapp.android.CrashManager
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.HashSet
+import kotlin.system.exitProcess
 
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -46,7 +46,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
 
     private var PRIVATE_MODE = 0
-    private val PREF_NAME = "waypoints"
+    private val PREF_NAME = "locations"
     private val PERM_REQ_CODE = 32
     private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy HH:mm:ss")
     private var mLocationManager : LocationManager? = null
@@ -105,14 +105,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 else {
                     showToast("missing location")
                 }
-
-
-
             }
             else {
                 showToast("cannot access location")
             }
-
         }
     }
 
@@ -140,7 +136,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     stopService(intent)
                 }
             }
-
         }
 
         return true
@@ -166,61 +161,70 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun purgeWaypoints() {
         GlobalScope.launch {
-            WindstonApp.database.waypointDao().purge()
+            WindstonApp.database.locationDao().purge()
         }
     }
 
     private fun sendEmail() {
-        val bodyText = bodyText()
-        if (bodyText.isNullOrEmpty()) {
-            showToast("nothing to send")
-            return
-        }
-        val mailto = "mailto:geopos@coderouge.ovh" +
-                "?subject=" + Uri.encode("Sent from Windston") +
-                "&body=" + Uri.encode(bodyText)
+        GlobalScope.launch {
+            val bodyText = bodyText()
+            if (bodyText.isNullOrEmpty()) {
+                showToast("nothing to send")
+            }
+            else {
+                val mailto = "mailto:geopos@coderouge.ovh" +
+                        "?subject=" + Uri.encode("Sent from Windston") +
+                        "&body=" + Uri.encode(bodyText)
 
-        val emailIntent = Intent(Intent.ACTION_SENDTO)
-        emailIntent.data = Uri.parse(mailto)
+                val emailIntent = Intent(Intent.ACTION_SENDTO)
+                emailIntent.data = Uri.parse(mailto)
 
-        try {
-            startActivity(emailIntent)
-            purge()
-        } catch (e: ActivityNotFoundException) {
-            //TODO: Handle case where no email app is available
-            showToast("cannot send email")
+                try {
+                    startActivity(emailIntent)
+                    purgeWaypoints()
+                } catch (e: ActivityNotFoundException) {
+                    //TODO: Handle case where no email app is available
+                    showToast("cannot send email")
+                }
+            }
+
         }
+
     }
 
-    private fun bodyText(): String? {
-        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
-        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
-        return join(waypoints, "\n===\n")
+    private suspend fun bodyText(): String? {
+//        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
+//        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
+//        return join(waypoints, "\n===\n")
+
+        return WindstonApp.database.locationDao().getAll()
+            .map { loc -> "latitude: ${loc.lat}\nlongitude: ${loc.lng}\ndate: ${DATE_FORMAT.format(loc.date)}" }
+            .joinToString("\n===\n")
+
     }
 
     private fun addWaypoint(lat: Double, lng: Double, date: Date) {
 
         GlobalScope.launch {
-            WindstonApp.database.waypointDao().insertAll(Waypoint( lat, lng, date))
+            WindstonApp.database.locationDao().insertAll(LocationData( lat, lng, date))
         }
 
     }
 
-    private fun purge() {
-        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
-        val editor = sharedPref.edit()
-        editor.putStringSet(PREF_NAME, HashSet<String>())
-        editor.apply()
-    }
+//    private fun purge() {
+//        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
+//        val editor = sharedPref.edit()
+//        editor.putStringSet(PREF_NAME, HashSet<String>())
+//        editor.apply()
+//    }
 
-
-    private fun extLatLng(wps: String): List<String> {
-        return wps
-            .split('\n')
-            .get(0)
-            .substringAfter("latlng: ")
-            .split(", ")
-    }
+//    private fun extLatLng(wps: String): List<String> {
+//        return wps
+//            .split('\n')
+//            .get(0)
+//            .substringAfter("latlng: ")
+//            .split(", ")
+//    }
 
     @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
@@ -265,7 +269,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         GlobalScope.launch {
 
-            val tail = WindstonApp.database.waypointDao().getTail()
+            val tail = WindstonApp.database.locationDao().getTail()
 
             withContext(Dispatchers.Main) {
                 tail.forEach { wp ->

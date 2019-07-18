@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 import java.util.*
 
 @Entity
-data class Waypoint(
+data class LocationData(
     @ColumnInfo(name = "lat") val lat: Double,
     @ColumnInfo(name = "lng") val lng: Double,
     @ColumnInfo(name = "date") val date: Date

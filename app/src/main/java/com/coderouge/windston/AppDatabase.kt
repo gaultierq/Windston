@@ -4,8 +4,8 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = arrayOf(Waypoint::class), version = 1)
+@Database(entities = arrayOf(LocationData::class), version = 1)
 @TypeConverters(DateTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun waypointDao(): WaypointDao
+    abstract fun locationDao(): LocationDao
 }
