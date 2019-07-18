@@ -88,8 +88,20 @@ class Utils {
         }
     }
 
-    public static double distanceBetween(LatLng start, LatLng end) {
-        return SphericalUtil.computeDistanceBetween(start, end);
+    public static double bearing(LatLng s, LatLng e){
+        return bearing(s.latitude, s.longitude, e.latitude, e.longitude);
     }
+
+
+    public static double bearing(double startLat, double startLng, double endLat, double endLng){
+        double latitude1 = Math.toRadians(startLat);
+        double latitude2 = Math.toRadians(endLat);
+        double longDiff= Math.toRadians(endLng - startLng);
+        double y= Math.sin(longDiff)*Math.cos(latitude2);
+        double x=Math.cos(latitude1)*Math.sin(latitude2)-Math.sin(latitude1)*Math.cos(latitude2)*Math.cos(longDiff);
+
+        return (Math.toDegrees(Math.atan2(y, x))+360)%360;
+    }
+
 
 }

@@ -30,6 +30,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.maps.android.SphericalUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -39,7 +40,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 
-class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
+class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
     private lateinit var mFusedLocationClient: FusedLocationProviderClient
     private lateinit var mMap: GoogleMap
@@ -216,31 +217,40 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    var target: LatLng? = null;
+    var mTarget: Marker? = null
+
+    override fun onMapLongClick(target: LatLng) {
+
+        //creating target
+        if (mTarget == null) {
+            mTarget = mMap.addMarker(
+                MarkerOptions()
+                    .position(target)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
+
+            )
+            mMap.setOnMarkerClickListener { marker ->
+                if (marker == mTarget) {
+                    marker.remove()
+                    mTarget = null
+                    refreshTargetText()
+                }
+                true
+            }
+        }
+        else {
+            mTarget!!.position = target
+        }
+
+        refreshTargetText()
+    }
 
     @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        mMap.setOnMapLongClickListener { target ->
-            this.target = target
 
-            mMap.addMarker(
-                MarkerOptions()
-                    .position(target)
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
-            )
-            val myLocation = myLocation()
-            var text = ""
-            if (myLocation != null) {
-                 text = "" + Utils.distanceBetween(
-                    target,
-                    LatLng(myLocation.latitude, myLocation.longitude)
-                ) / ONE_NM_IN_M + "nm"
-
-            }
-            findViewById<TextView>(R.id.distanceToTarget).text =  text
-        }
+        mMap.setOnMapLongClickListener(this)
 
         if (!canAccessLocation()) {
             // Permission is not granted
@@ -280,7 +290,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         GlobalScope.launch {
 
-            val tail = WindstonApp.database.locationDao().getTail()
+//            val tail = WindstonApp.database.locationDao().getTail()
+            val tail = WindstonApp.database.locationDao().getAll()
 
             withContext(Dispatchers.Main) {
                 tail.forEach { wp ->
@@ -291,6 +302,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
         }
+    }
+
+    private fun refreshTargetText() {
+        val target = mTarget?.position
+        val myLocation = myLocation()
+
+        var text = ""
+        if (myLocation != null && target != null) {
+            val my = LatLng(myLocation.latitude, myLocation.longitude)
+            val d = SphericalUtil.computeDistanceBetween(my,target) / ONE_NM_IN_M
+
+            val dist = String.format("%.3f nm", d)
+            val bearing =  String.format("%.3f deg", Utils.bearing(my,target))
+            text = dist + "\n" + bearing
+
+        }
+        findViewById<TextView>(R.id.distanceToTarget).text = text
     }
 
     override fun onResume() {
