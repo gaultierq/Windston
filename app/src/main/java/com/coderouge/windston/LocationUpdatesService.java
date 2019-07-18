@@ -278,10 +278,12 @@ public class LocationUpdatesService extends Service {
      */
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
-        mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+        int updateIntervalMs = Utils.getUpdateIntervalMs(this);
+
+        mLocationRequest.setInterval(updateIntervalMs);
+        mLocationRequest.setFastestInterval(updateIntervalMs / 2);
+        mLocationRequest.setSmallestDisplacement(Utils.getSmallestDisplacementM(this));
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setSmallestDisplacement(500);
     }
 
     @Override

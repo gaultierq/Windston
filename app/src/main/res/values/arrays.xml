@@ -1,0 +1,31 @@
+<resources>
+    <string-array name="update_interval">
+        <item>10s</item>
+        <item>5min</item>
+        <item>2h</item>
+        <item>1d</item>
+    </string-array>
+
+    <string-array name="update_interval_values">
+        <item>10000</item>
+        <item>300000</item>
+        <item>7.2e+6</item>
+        <item>8.64e+7</item>
+    </string-array>
+
+    <string-array name="smallest_displacement">
+        <item>1m</item>
+        <item>10m</item>
+        <item>100m</item>
+        <item>1km</item>
+        <item>10km</item>
+    </string-array>
+
+    <string-array name="smallest_displacement_values">
+        <item>1</item>
+        <item>10</item>
+        <item>100</item>
+        <item>1000</item>
+        <item>10000</item>
+    </string-array>
+</resources>

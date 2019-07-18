@@ -88,8 +88,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     @SuppressLint("MissingPermission")
     private fun onFloatClick() {
         run {
-
-
             if (canAccessLocation()) {
                 val location = mLocationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
@@ -155,8 +153,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         when (item.getItemId()) {
             R.id.action_send -> sendEmail()
             R.id.action_purge -> purgeWaypoints()
+            R.id.action_settings -> showSettings()
         }
         return true
+    }
+
+    private fun showSettings() {
+        startActivity(Intent(this, SettingsActivity::class.java))
     }
 
     private fun purgeWaypoints() {
@@ -192,7 +195,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    private suspend fun bodyText(): String? {
+    private fun bodyText(): String? {
 //        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
 //        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
 //        return join(waypoints, "\n===\n")
@@ -210,21 +213,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
     }
-
-//    private fun purge() {
-//        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
-//        val editor = sharedPref.edit()
-//        editor.putStringSet(PREF_NAME, HashSet<String>())
-//        editor.apply()
-//    }
-
-//    private fun extLatLng(wps: String): List<String> {
-//        return wps
-//            .split('\n')
-//            .get(0)
-//            .substringAfter("latlng: ")
-//            .split(", ")
-//    }
 
     @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {

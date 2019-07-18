@@ -1,4 +1,14 @@
 <resources>
     <string name="app_name">Windston</string>
     <string name="title_activity_maps">Windston</string>
+
+    <string name="title_activity_settings">Settings</string>
+    <string name="update_header">GPS updates</string>
+
+    <string name="pref_key_update_interval_ms">UPDATE_INTERVAL_MS</string>
+    <string name="pref_key_smallest_displacement_m">SMALLEST_DISPLACEMENT_M</string>
+
+
+
+
 </resources>

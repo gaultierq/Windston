@@ -30,25 +30,25 @@ class Utils {
 
     static final String KEY_REQUESTING_LOCATION_UPDATES = "requesting_locaction_updates";
 
-    /**
-     * Returns true if requesting location updates, otherwise returns false.
-     *
-     * @param context The {@link Context}.
-     */
-    static boolean isRequestingLocationUpdates(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context)
-                .getBoolean(KEY_REQUESTING_LOCATION_UPDATES, false);
+    static final String KEY_UPDATE_INTERVAL_MS = "update_interval_ms";
+
+    static final String KEY_SMALLEST_DISPLACEMENT_M = "smallest_displacement_m";
+
+    private static final int MIN_IN_S = 60;
+    private static final int S_IN_MS = 1000;
+    private static final int ONE_MINUTE = MIN_IN_S * S_IN_MS;
+
+
+    static int getUpdateIntervalMs(Context context) {
+        String s = PreferenceManager.getDefaultSharedPreferences(context)
+                .getString(context.getString(R.string.pref_key_update_interval_ms), "" + ONE_MINUTE);
+        return Integer.parseInt(s);
     }
 
-    /**
-     * Stores the location updates state in SharedPreferences.
-     * @param requestingLocationUpdates The location updates state.
-     */
-    static void setRequestingLocationUpdates(Context context, boolean requestingLocationUpdates) {
-        PreferenceManager.getDefaultSharedPreferences(context)
-                .edit()
-                .putBoolean(KEY_REQUESTING_LOCATION_UPDATES, requestingLocationUpdates)
-                .apply();
+    static int getSmallestDisplacementM(Context context) {
+        String s = PreferenceManager.getDefaultSharedPreferences(context)
+                .getString(context.getString(R.string.pref_key_smallest_displacement_m), "500");
+        return Integer.parseInt(s);
     }
 
     /**
