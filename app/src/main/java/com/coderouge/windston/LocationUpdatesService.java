@@ -257,14 +257,14 @@ public class LocationUpdatesService extends Service {
     }
 
     private void onNewLocation(final Location location) {
-        Log.i(TAG, "New location: " + location);
+        Log.w(TAG, "New location: " + location);
 
         mLocation = location;
 
         // Notify anyone listening for broadcasts about the new location.
         Intent intent = new Intent(ACTION_BROADCAST);
         intent.putExtra(EXTRA_LOCATION, location);
-        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+//        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
 
         // Update notification content if running as a foreground service.
         mNotificationManager.notify(NOTIFICATION_ID, getNotification());

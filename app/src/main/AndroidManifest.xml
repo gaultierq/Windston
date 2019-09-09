@@ -54,6 +54,7 @@
             android:enabled="true"
             android:exported="true"
             android:process=":com.coderouge.windston.LocationUpdatesService" />
+        <receiver android:name=".MapsActivity$BroadcastReceiver1" />
     </application>
 
 </manifest>

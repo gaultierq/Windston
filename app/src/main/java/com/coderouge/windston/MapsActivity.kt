@@ -3,9 +3,7 @@ package com.coderouge.windston
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
+import android.content.*
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
@@ -20,6 +18,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.coderouge.windston.LocationUpdatesService.ACTION_BROADCAST
 import com.coderouge.windston.Utils.ONE_NM_IN_M
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -61,6 +61,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     private val TAG = "MapsActivity"
 
+    private lateinit var mReceiver : BroadcastReceiver1;
+
 
     companion object {
 
@@ -99,6 +101,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             this.removeMode = isChecked
         }
     }
+
+
+    class BroadcastReceiver1 : BroadcastReceiver {
+
+        private lateinit var activity: MapsActivity
+
+        constructor(ac: MapsActivity) {
+            this.activity = ac
+        }
+
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            Log.i("BroadcastReceiver1", "new marker from service")
+            activity.refreshMarkers()
+        }
+
+    }
+
 
     private fun onFloatClick() {
         run {
@@ -381,7 +400,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         super.onResume()
         CrashManager.register(this)
 
+        mReceiver = BroadcastReceiver1(this);
+        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(mReceiver, IntentFilter(ACTION_BROADCAST));
+
         this.refreshMarkers()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(getApplicationContext()).unregisterReceiver(mReceiver);
     }
 
     private fun addMarker(loc: LocationData) {
