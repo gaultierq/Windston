@@ -17,6 +17,9 @@ interface LocationDao {
     @Query("SELECT * FROM locationdata WHERE uid IN (:locationIds)")
     fun loadAllByIds(locationIds: IntArray): List<LocationData>
 
+    @Query("SELECT * FROM locationdata WHERE lat = (:lat) AND lng = (:lng)")
+    fun findByLatLng(lat: Double, lng: Double): List<LocationData>
+
     @Insert
     fun insertAll(vararg locationData: LocationData)
 

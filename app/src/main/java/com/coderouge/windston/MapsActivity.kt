@@ -10,12 +10,14 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.coderouge.windston.Utils.ONE_NM_IN_M
@@ -38,20 +40,31 @@ import kotlinx.coroutines.withContext
 import net.hockeyapp.android.CrashManager
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.HashSet
 
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
+    private var removeMode: Boolean = false
     private lateinit var mFusedLocationClient: FusedLocationProviderClient
     private lateinit var mMap: GoogleMap
+    var mTarget: Marker? = null
 
-    private var PRIVATE_MODE = 0
-    private val PREF_NAME = "locations"
+    private var mMarkers = HashMap<MarkerKey, Marker>()
+
     private val PERM_REQ_CODE = 32
+
     private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy HH:mm:ss")
+
     private var mLocationManager : LocationManager? = null
 
+
+    private val TAG = "MapsActivity"
+
+
     companion object {
+
+
         private fun join(set: Set<String>?, sep: String): String? {
             if (set == null) return null
             val sb = StringBuilder();
@@ -65,8 +78,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             }
             return  sb.toString();
         }
-    }
 
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,12 +92,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         mLocationManager = getSystemService(LOCATION_SERVICE) as LocationManager?;
         DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("gmt"));
         this.findViewById<FloatingActionButton>(R.id.fab).setOnClickListener { v ->
-
             onFloatClick()
         }
 
+        this.findViewById<SwitchCompat>(R.id.removeLocation).setOnCheckedChangeListener { view, isChecked ->
+            this.removeMode = isChecked
+        }
     }
-
 
     private fun onFloatClick() {
         run {
@@ -97,7 +111,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
                 if (lat != null && lng != null) {
                     addWaypoint(lat, lng, Date())
-                    showWaypoint(lat, lng)
+
+                    this.refreshMarkers()
+
                     showToast("waypoint added")
                 }
                 else {
@@ -169,6 +185,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         GlobalScope.launch {
             WindstonApp.database.locationDao().purge()
         }
+        this.refreshMarkers()
     }
 
     private fun sendEmail() {
@@ -187,7 +204,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
                 try {
                     startActivity(emailIntent)
-                    purgeWaypoints()
                 } catch (e: ActivityNotFoundException) {
                     //TODO: Handle case where no email app is available
                     showToast("cannot send email")
@@ -212,12 +228,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private fun addWaypoint(lat: Double, lng: Double, date: Date) {
 
         GlobalScope.launch {
-            WindstonApp.database.locationDao().insertAll(LocationData( lat, lng, date))
+            WindstonApp.database.locationDao().insertAll(LocationData(lat, lng, date))
         }
 
     }
-
-    var mTarget: Marker? = null
 
     override fun onMapLongClick(target: LatLng) {
 
@@ -227,16 +241,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
                 MarkerOptions()
                     .position(target)
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
-
             )
-            mMap.setOnMarkerClickListener { marker ->
-                if (marker == mTarget) {
-                    marker.remove()
-                    mTarget = null
-                    refreshTargetText()
-                }
-                true
-            }
         }
         else {
             mTarget!!.position = target
@@ -251,6 +256,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
 
         mMap.setOnMapLongClickListener(this)
+
+        mMap.setOnMarkerClickListener { marker ->
+            if (marker == mTarget) {
+                marker.remove()
+                mTarget = null
+                refreshTargetText()
+            }
+            else if (this.removeMode) {
+
+                val lat = marker.position.latitude
+                val lng = marker.position.longitude
+
+                GlobalScope.launch {
+                    val dao = WindstonApp.database.locationDao()
+                    val loc = dao.findByLatLng(lat, lng);
+                    if (loc.size == 1) {
+                        dao.delete(loc.get(0))
+                        withContext(Dispatchers.Main) {
+                            marker.remove()
+                        }
+                    }
+                }
+
+            }
+            else {
+                showToast(""+marker.position)
+            }
+            true
+        }
 
         if (!canAccessLocation()) {
             // Permission is not granted
@@ -288,18 +322,40 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
         }
 
+        refreshMarkers()
+    }
+
+    private fun refreshMarkers() {
         GlobalScope.launch {
 
-//            val tail = WindstonApp.database.locationDao().getTail()
-            val tail = WindstonApp.database.locationDao().getAll()
+            //            val tail = WindstonApp.database.locationDao().getTail()
+            val allMarkers = WindstonApp.database.locationDao().getAll()
 
             withContext(Dispatchers.Main) {
-                tail.forEach { wp ->
-                    run {
-                        showWaypoint(wp.lat, wp.lng)
+                run {
+                    val remainingKeys = HashSet(mMarkers.keys)
+                    allMarkers.forEach { loc ->
 
+                        val key = markerKey(loc)
+
+                        // is in mMarker => nothing to do
+                        if (!remainingKeys.remove(key)) {
+                            addMarker(loc)
+                        }
+                    }
+
+                    for (key in remainingKeys) {
+                        removeMarker(key);
                     }
                 }
+            }
+        }
+    }
+
+    private suspend fun removeLocation(latitude: Double, longitude: Double) {
+        withContext(Dispatchers.IO) {
+            run {
+                var loc = WindstonApp.database.locationDao().findByLatLng(latitude, longitude);
             }
         }
     }
@@ -324,15 +380,39 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     override fun onResume() {
         super.onResume()
         CrashManager.register(this)
+
+        this.refreshMarkers()
     }
 
-    private fun showWaypoint(lat: Double, lng: Double): Marker? {
+    private fun addMarker(loc: LocationData) {
+        val key = MarkerKey(loc.lat, loc.lng, loc.date);
+        if (this.mMarkers.containsKey(key)) {
+            Log.i(TAG, "marker key already in array");
+        }
+        else {
+            this.mMarkers.put(key, makeMarker(loc.lat, loc.lng))
+        }
+    }
+
+    private fun removeMarker(key: MarkerKey) {
+        val marker = this.mMarkers.remove(key);
+        if (marker != null) {
+            marker.remove();
+        }
+    }
+
+    private fun markerKey(loc: LocationData) = MarkerKey(loc.lat, loc.lng, loc.date)
+
+    private fun makeMarker(lat: Double, lng: Double): Marker {
 
         return mMap.addMarker(
-            MarkerOptions().position(LatLng(lat, lng)).icon(
-                BitmapDescriptorFactory
-                    .defaultMarker(BitmapDescriptorFactory.HUE_RED)
-            )
+            MarkerOptions()
+                .position(LatLng(lat, lng))
+                .icon(
+                    BitmapDescriptorFactory
+                        .defaultMarker(BitmapDescriptorFactory.HUE_RED)
+
+                )
         );
     }
 

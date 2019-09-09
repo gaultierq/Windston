@@ -269,7 +269,9 @@ public class LocationUpdatesService extends Service {
         // Update notification content if running as a foreground service.
         mNotificationManager.notify(NOTIFICATION_ID, getNotification());
 
-        InsertAsyncTask task = new InsertAsyncTask(new LocationData(location.getLatitude(), location.getLongitude(), new Date()));
+
+        LocationData locationData = new LocationData(location.getLatitude(), location.getLongitude(), new Date());
+        InsertAsyncTask task = new InsertAsyncTask(locationData);
         task.execute();
     }
 
@@ -303,7 +305,7 @@ public class LocationUpdatesService extends Service {
 
         @Override
         protected Integer doInBackground(Void... params) {
-            WindstonApp.database.locationDao().insertAll(new LocationData(this.locationData.getLat(), this.locationData.getLng(), new Date()));
+            WindstonApp.database.locationDao().insertAll(this.locationData);
             return null;
         }
 
