@@ -17,6 +17,7 @@
 package com.coderouge.windston;
 
 import android.app.*;
+import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.os.AsyncTask;
@@ -32,6 +33,7 @@ import com.google.android.gms.location.*;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
+import java.lang.ref.WeakReference;
 import java.util.Date;
 
 /**
@@ -262,16 +264,16 @@ public class LocationUpdatesService extends Service {
         mLocation = location;
 
         // Notify anyone listening for broadcasts about the new location.
+//        intent.putExtra(EXTRA_LOCATION, location);
         Intent intent = new Intent(ACTION_BROADCAST);
-        intent.putExtra(EXTRA_LOCATION, location);
-//        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+        sendBroadcast(intent);
 
         // Update notification content if running as a foreground service.
         mNotificationManager.notify(NOTIFICATION_ID, getNotification());
 
 
         LocationData locationData = new LocationData(location.getLatitude(), location.getLongitude(), new Date());
-        InsertAsyncTask task = new InsertAsyncTask(locationData);
+        InsertAsyncTask task = new InsertAsyncTask(locationData, this);
         task.execute();
     }
 
@@ -297,10 +299,12 @@ public class LocationUpdatesService extends Service {
 
     private static class InsertAsyncTask extends AsyncTask<Void, Void, Integer> {
 
+        private final WeakReference<Context> context;
         private LocationData locationData;
 
-        InsertAsyncTask(LocationData locationData) {
+        InsertAsyncTask(LocationData locationData, Context context) {
             this.locationData = locationData;
+            this.context = new WeakReference<>(context);
         }
 
         @Override
@@ -309,6 +313,13 @@ public class LocationUpdatesService extends Service {
             return null;
         }
 
+        @Override
+        protected void onPostExecute(Integer integer) {
+            Context c = this.context.get();
+            if (c != null) {
+                c.sendBroadcast(new Intent(LocationUpdatesService.ACTION_BROADCAST));
+            }
+        }
     }
 
 }

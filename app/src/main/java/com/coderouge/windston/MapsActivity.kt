@@ -61,7 +61,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     private val TAG = "MapsActivity"
 
-    private lateinit var mReceiver : BroadcastReceiver1;
+    private val mReceiver : BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(p0: Context?, p1: Intent?) {
+            Log.i(TAG, "receiving broadcasted message")
+            refreshMarkers()
+        }
+
+    }
 
 
     companion object {
@@ -100,22 +106,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         this.findViewById<SwitchCompat>(R.id.removeLocation).setOnCheckedChangeListener { view, isChecked ->
             this.removeMode = isChecked
         }
-    }
-
-
-    class BroadcastReceiver1 : BroadcastReceiver {
-
-        private lateinit var activity: MapsActivity
-
-        constructor(ac: MapsActivity) {
-            this.activity = ac
-        }
-
-        override fun onReceive(p0: Context?, p1: Intent?) {
-            Log.i("BroadcastReceiver1", "new marker from service")
-            activity.refreshMarkers()
-        }
-
     }
 
 
@@ -398,17 +388,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     override fun onResume() {
         super.onResume()
+        Log.i(TAG, "Lifecycle: on Resume")
         CrashManager.register(this)
-
-        mReceiver = BroadcastReceiver1(this);
-        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(mReceiver, IntentFilter(ACTION_BROADCAST));
-
         this.refreshMarkers()
+        registerReceiver(mReceiver, IntentFilter(ACTION_BROADCAST));
     }
 
     override fun onPause() {
         super.onPause()
-        LocalBroadcastManager.getInstance(getApplicationContext()).unregisterReceiver(mReceiver);
+        Log.i(TAG, "Lifecycle: on pause")
+        unregisterReceiver(mReceiver);
     }
 
     private fun addMarker(loc: LocationData) {
