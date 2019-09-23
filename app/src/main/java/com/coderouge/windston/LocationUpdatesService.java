@@ -224,6 +224,8 @@ public class LocationUpdatesService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
                 .setContentText(text)
                 .setContentTitle(Utils.getLocationTitle(this))
+                .setDefaults(Notification.DEFAULT_LIGHTS | Notification.DEFAULT_SOUND)
+                .setVibrate(new long[]{0L})
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -272,7 +274,13 @@ public class LocationUpdatesService extends Service {
         mNotificationManager.notify(NOTIFICATION_ID, getNotification());
 
 
-        LocationData locationData = new LocationData(location.getLatitude(), location.getLongitude(), new Date());
+        LocationData locationData = new LocationData(
+                location.getLatitude(),
+                location.getLongitude(),
+                new Date(),
+                location.getSpeed(),
+                location.getBearing()
+        );
         InsertAsyncTask task = new InsertAsyncTask(locationData, this);
         task.execute();
     }

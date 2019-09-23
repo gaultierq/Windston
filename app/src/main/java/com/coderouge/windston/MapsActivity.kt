@@ -64,7 +64,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private val mReceiver : BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(p0: Context?, p1: Intent?) {
             Log.i(TAG, "receiving broadcasted message")
-            refreshMarkers()
+            refresh()
         }
 
     }
@@ -121,7 +121,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
                 if (lat != null && lng != null) {
                     addWaypoint(lat, lng, Date())
 
-                    this.refreshMarkers()
+                    this.refresh()
 
                     showToast("waypoint added")
                 }
@@ -194,7 +194,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         GlobalScope.launch {
             WindstonApp.database.locationDao().purge()
         }
-        this.refreshMarkers()
+        this.refresh()
     }
 
     private fun sendEmail() {
@@ -237,7 +237,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private fun addWaypoint(lat: Double, lng: Double, date: Date) {
 
         GlobalScope.launch {
-            WindstonApp.database.locationDao().insertAll(LocationData(lat, lng, date))
+            WindstonApp.database.locationDao().insertAll(
+                LocationData(
+                    lat,
+                    lng,
+                    date,
+                    null,
+                    null
+                ))
         }
 
     }
@@ -256,7 +263,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             mTarget!!.position = target
         }
 
-        refreshTargetText()
+        refresh()
     }
 
     @SuppressLint("MissingPermission")
@@ -270,7 +277,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             if (marker == mTarget) {
                 marker.remove()
                 mTarget = null
-                refreshTargetText()
+                refresh()
             }
             else if (this.removeMode) {
 
@@ -331,7 +338,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
         }
 
+        refresh()
+    }
+
+    private fun refresh() {
         refreshMarkers()
+        refreshInfoText()
+        refreshTargetText()
     }
 
     private fun refreshMarkers() {
@@ -381,9 +394,27 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             val dist = String.format("%.3f nm", d)
             val bearing =  String.format("%.3f deg", Utils.bearing(my,target))
             text = dist + "\n" + bearing
+            text = "Distance to target" + "\n" + text
 
         }
         findViewById<TextView>(R.id.distanceToTarget).text = text
+    }
+
+    private fun refreshInfoText() {
+
+        GlobalScope.launch {
+            val avgSpeed = WindstonApp.database.locationDao().averageSpeed(Date(0), Date())
+
+            withContext(Dispatchers.Main) {
+                run {
+                    var text = "average speed: " + avgSpeed
+                    findViewById<TextView>(R.id.infoText).text = text
+                }
+            }
+        }
+
+
+
     }
 
     override fun onResume() {
