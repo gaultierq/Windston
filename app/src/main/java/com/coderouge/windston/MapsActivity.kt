@@ -153,7 +153,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         //TODO: check order
         val offsets = Offset.values()
 
-        val names = arrayOf("offset", "speed (nm/h)", "speed2 (nm/h)", "speed3 (nm/h)", "bearing")
+        val names = arrayOf("offset", "speed", "speed2", "speed3", "bearing")
 
         LegacyTableView.insertLegacyTitle(*names)
         table.setTitle(LegacyTableView.readLegacyTitle())
