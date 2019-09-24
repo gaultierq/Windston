@@ -27,6 +27,12 @@ interface LocationDao {
     @Query("SELECT * FROM locationdata WHERE date BETWEEN (:from) AND (:to)")
     fun selectBetween(from: Date, to: Date): List<LocationData>
 
+    @Query("SELECT * FROM locationdata WHERE date < (:date) order by date desc limit 1")
+    fun selectJustBefore(date: Date): LocationData?
+
+    @Query("SELECT * FROM locationdata WHERE date > (:date) order by date asc limit 1")
+    fun selectJustAfter(date: Date): LocationData?
+
     @Insert
     fun insertAll(vararg locationData: LocationData)
 

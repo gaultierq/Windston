@@ -400,15 +400,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     private fun refreshInfoText() {
+        val f = statFrom()
+        val t = statTo()
 
         GlobalScope.launch {
-            val avgSpeed = calcAverageSpeed()
-            val avgSpeed2 = calcAverageSpeed2()
+
+
+            val avgSpeed = calcAverageSpeed(f, t)
+            val avgSpeed2 = calcAverageSpeed2(f, t)
+            val avgSpeed3 = calcAverageSpeed3(f, t)
+            val avgBearing = calcAvgBearing(f, t)
 
             withContext(Dispatchers.Main) {
                 run {
                     var text = "average speed: " + avgSpeed
                     text = text + "\n" + "average speed2: " + avgSpeed2
+                    text = text + "\n" + "average speed3: " + avgSpeed3
+                    text = text + "\n" + "average bearing: " + avgBearing
 
                     findViewById<TextView>(R.id.infoText).text = text
                 }
@@ -417,35 +425,47 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     //average of speeds
-    private fun calcAverageSpeed() = WindstonApp.database.locationDao().averageSpeed(statFrom(), statTo())
+    private fun calcAverageSpeed(f: Date, t: Date) = WindstonApp.database.locationDao().averageSpeed(f, t)
 
     // (dist / time) between every waypoints
-    private fun calcAverageSpeed2(): Double? {
-        val locs = WindstonApp.database.locationDao().selectBetween(statFrom(), statTo())
+    private fun calcAverageSpeed2(f: Date, t: Date): Double? {
+        val locs = WindstonApp.database.locationDao().selectBetween(f, t)
 
-        var s = -1
-        var res: Double? = null
+        var res = 0.0
 
-        while (++s < locs.size) {
-            val cur = locs.get(s)
-            if (s + 1 < locs.size) {
-                var next = locs.get(s + 1)
-
-                val distance = SphericalUtil.computeDistanceBetween(latLng(cur),latLng(next)) / ONE_NM_IN_M
-                val time = (next.date.time - cur.date.time) / 1000.0 / 3600.0
-                if (time <= 0) continue
-                val sp = distance / time
-                if (res == null) {
-                    res = sp
-                }
-                else {
-                    res = (res * s + sp) / (s + 1)
-                }
-
-            }
-            else break
+        for ((s, cur) in locs.withIndex()) {
+            if (s + 1 >= locs.size) break
+            val next = locs.get(s + 1)
+            val sp = calcSpeed(cur, next)
+            if (sp == null) continue
+            res = (res * s + sp) / (s + 1)
         }
         return res
+    }
+
+    // (dist_final / time_total)
+    private fun calcAverageSpeed3(f: Date, t: Date): Double? {
+        val locFrom = WindstonApp.database.locationDao().selectJustAfter(f)
+        val locTo = WindstonApp.database.locationDao().selectJustBefore(t)
+        if (locFrom == null || locTo == null) return null
+        return calcSpeed(locFrom, locTo)
+    }
+
+    private fun calcAvgBearing(f: Date, t: Date): Double? {
+        val locFrom = WindstonApp.database.locationDao().selectJustAfter(f)
+        val locTo = WindstonApp.database.locationDao().selectJustBefore(t)
+        if (locFrom == null || locTo == null) return null
+        return Utils.bearing(latLng(locFrom), latLng(locTo))
+    }
+
+    private fun calcSpeed(
+        cur: LocationData,
+        next: LocationData
+    ): Double? {
+        val distance = SphericalUtil.computeDistanceBetween(latLng(cur), latLng(next)) / ONE_NM_IN_M
+        val time = (next.date.time - cur.date.time) / 1000.0 / 3600.0
+        if (time <=0) return null
+        return distance / time
     }
 
     private fun latLng(cur: LocationData): LatLng {
