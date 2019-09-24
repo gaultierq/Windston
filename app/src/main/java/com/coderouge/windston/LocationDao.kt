@@ -27,6 +27,9 @@ interface LocationDao {
     @Query("SELECT * FROM locationdata WHERE date BETWEEN (:from) AND (:to)")
     fun selectBetween(from: Date, to: Date): List<LocationData>
 
+    @Query("SELECT COUNT(*) FROM locationdata WHERE date BETWEEN (:from) AND (:to)")
+    fun countBetween(from: Date, to: Date): Int
+
     @Query("SELECT * FROM locationdata WHERE date < (:date) order by date desc limit 1")
     fun selectJustBefore(date: Date): LocationData?
 

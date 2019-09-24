@@ -99,9 +99,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             Log.i(TAG, "receiving broadcasted message")
             refresh()
         }
-
     }
-
 
     companion object {
 
@@ -141,16 +139,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         }
 
 
-        this.buildInfoText()
+        this.buildInfoTable()
     }
 
 
-    private fun buildInfoText() {
+    private fun buildInfoTable() {
 
 
         val table = this.findViewById<LegacyTableView>(R.id.legacy_table_view)
         table.setContentTextSize(40)
         table.setContentTextAlignment(CENTER)
+
+        //TODO: check order
         val offsets = Offset.values()
 
         val names = arrayOf("offset", "speed (nm/h)", "speed2 (nm/h)", "speed3 (nm/h)", "bearing")
@@ -162,15 +162,34 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         val infos = HashMap<Offset, Info>()
 
         GlobalScope.launch {
+
+            var prev: Offset? = null
+
+            fun offseted(o: Offset) = Date(t.time - o.valueMs)
+
             for (o in offsets) {
-                val f = Date(t.time - o.valueMs)
-                val i = makeInfo(f, t)
-                infos.put(o, i)
+                val from = offseted(o)
+
+                if (prev != null) {
+
+                    val to = offseted(prev)
+                    val cb = WindstonApp.database.locationDao().countBetween(from, to)
+                    if (cb == 0) {
+                        //no data between this offset and the prev with offset
+                        continue
+                    }
+                }
+
+                infos.put(o, makeInfo(from, t))
+                prev = o
             }
 
             for (o in offsets) {
                 val i = infos.get(o)
-                LegacyTableView.insertLegacyContent(o.disp, *i!!.printValues());
+                i?.let {
+                    LegacyTableView.insertLegacyContent(o.disp, *i.printValues());
+                }
+
             }
 
             withContext(Dispatchers.Main) {
