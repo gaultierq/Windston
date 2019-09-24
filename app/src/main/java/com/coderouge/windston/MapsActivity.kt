@@ -12,7 +12,6 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Switch
-import android.widget.TableLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -33,6 +32,7 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.maps.android.SphericalUtil
+import com.levitnudi.legacytableview.LegacyTableView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -43,18 +43,18 @@ import java.util.*
 import kotlin.collections.HashSet
 
 
-enum class Offset(val valueMs: Int) {
-    ONE_MIN(1 * 60 * 1000),
-    FIVE_MIN(5 * 60 * 1000),
-    TEN_MIN(10 * 60 * 1000),
-    THIRTY_MIN(30 * 60 * 1000),
-    ONE_H(60 * 60 * 1000),
-    TWO_H(2 * 60 * 60 * 1000),
-    SIX_H(6 * 60 * 60 * 1000),
-    TWELVE_H(12 * 60 * 60 * 1000),
-    ONE_D(24 * 60 * 60 * 1000),
-    THREE_D(3 * 24 * 60 * 60 * 1000),
-    ONE_WEEK(7 * 24 * 60 * 60 * 1000),
+enum class Offset(val valueMs: Int, val disp: String) {
+    ONE_MIN(1 * 60 * 1000, "1m"),
+    FIVE_MIN(5 * 60 * 1000, "5m"),
+    TEN_MIN(10 * 60 * 1000, "10m"),
+    THIRTY_MIN(30 * 60 * 1000, "30m"),
+    ONE_H(60 * 60 * 1000, "1h"),
+    TWO_H(2 * 60 * 60 * 1000, "2h"),
+    SIX_H(6 * 60 * 60 * 1000, "6h"),
+    TWELVE_H(12 * 60 * 60 * 1000, "12h"),
+    ONE_D(24 * 60 * 60 * 1000, "1d"),
+    THREE_D(3 * 24 * 60 * 60 * 1000, "3d"),
+    ONE_WEEK(7 * 24 * 60 * 60 * 1000, "1w"),
 }
 
 
@@ -63,6 +63,16 @@ class Info {
     var avgSpeed2: Double? = null
     var avgSpeed3: Double? = null
     var avgBearing: Double? = null
+
+
+    fun printValues(): Array<String> {
+        return arrayOf(rou(avgSpeed), rou(avgSpeed2), rou(avgSpeed3), rou(avgBearing))
+    }
+
+    private fun rou(v: Double?): String {
+        if (v == null) return "?"
+        return String.format("%.3f", v)
+    }
 }
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
@@ -128,8 +138,55 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         this.findViewById<SwitchCompat>(R.id.removeLocation).setOnCheckedChangeListener { view, isChecked ->
             this.removeMode = isChecked
         }
+
+
     }
 
+
+    private fun buildInfoText() {
+
+
+        val table = this.findViewById<LegacyTableView>(R.id.legacy_table_view)
+        val offsets = Offset.values()
+
+        val names = arrayOf("offset", "avgSpeed", "avgSpeed2", "avgSpeed3", "avgBearing")
+
+        LegacyTableView.insertLegacyTitle(*names)
+        table.setTitle(LegacyTableView.readLegacyTitle())
+
+        val t = statTo()
+        val infos = HashMap<Offset, Info>()
+
+        GlobalScope.launch {
+            for (o in offsets) {
+                val f = Date(t.time - o.valueMs)
+                val i = makeInfo(f, t)
+                infos.put(o, i)
+            }
+
+            for (o in offsets) {
+                val i = infos.get(o)
+                LegacyTableView.insertLegacyContent(o.disp, *i!!.printValues());
+            }
+
+            withContext(Dispatchers.Main) {
+                run {
+                    table.setContent(LegacyTableView.readLegacyContent())
+                    table.build();
+                }
+            }
+
+        }
+    }
+
+    private fun makeInfo(f: Date, t: Date): Info {
+        val i = Info()
+        i.avgSpeed = calcAverageSpeed(f, t)
+        i.avgSpeed2 = calcAverageSpeed2(f, t)
+        i.avgSpeed3 = calcAverageSpeed3(f, t)
+        i.avgBearing = calcAvgBearing(f, t)
+        return i
+    }
 
     private fun onFloatClick() {
         run {
@@ -365,7 +422,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     private fun refresh() {
         refreshMarkers()
-        refreshInfoText()
+        buildInfoText()
         refreshTargetText()
     }
 
@@ -420,44 +477,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
         }
         findViewById<TextView>(R.id.distanceToTarget).text = text
-    }
-
-    private fun refreshInfoText() {
-
-
-        val t = statTo()
-        val offsets = Offset.values()
-        val infos = HashMap<Offset, Info>()
-
-        GlobalScope.launch {
-            for (o in offsets) {
-                val f = Date(t.time - o.valueMs)
-                val i = Info()
-                i.avgSpeed = calcAverageSpeed(f, t)
-                i.avgSpeed2 = calcAverageSpeed2(f, t)
-                i.avgSpeed3 = calcAverageSpeed3(f, t)
-                i.avgBearing = calcAvgBearing(f, t)
-                infos.put(o, i)
-            }
-
-            val b = java.lang.StringBuilder()
-            b.append(" - | avgSpeed | avgSpeed2 | avgSpeed3 | avgBearing\n")
-            for ((o, i) in infos) {
-                b.append(o.name).append(":")
-                b.append(i.avgSpeed).append(" | ")
-                b.append(i.avgSpeed2).append(" | ")
-                b.append(i.avgSpeed3).append(" | ")
-                b.append(i.avgBearing).append(" | ")
-                b.append("\n")
-            }
-
-            withContext(Dispatchers.Main) {
-                run {
-                    findViewById<TextView>(R.id.infoText).text = b.toString()
-                }
-            }
-
-        }
     }
 
     //average of speeds

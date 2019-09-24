@@ -50,4 +50,18 @@
         android:text=""
         />
 
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.levitnudi.legacytableview.LegacyTableView
+            android:id="@+id/legacy_table_view"
+            android:layout_width="match_parent"
+            android:layout_height="600dp"
+            android:background="@color/colorPrimary"
+            />
+
+    </ScrollView>
+
 </LinearLayout>
