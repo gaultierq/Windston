@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Switch
+import android.widget.TableLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -41,6 +42,28 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.HashSet
 
+
+enum class Offset(val valueMs: Int) {
+    ONE_MIN(1 * 60 * 1000),
+    FIVE_MIN(5 * 60 * 1000),
+    TEN_MIN(10 * 60 * 1000),
+    THIRTY_MIN(30 * 60 * 1000),
+    ONE_H(60 * 60 * 1000),
+    TWO_H(2 * 60 * 60 * 1000),
+    SIX_H(6 * 60 * 60 * 1000),
+    TWELVE_H(12 * 60 * 60 * 1000),
+    ONE_D(24 * 60 * 60 * 1000),
+    THREE_D(3 * 24 * 60 * 60 * 1000),
+    ONE_WEEK(7 * 24 * 60 * 60 * 1000),
+}
+
+
+class Info {
+    var avgSpeed: Double? = null
+    var avgSpeed2: Double? = null
+    var avgSpeed3: Double? = null
+    var avgBearing: Double? = null
+}
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
@@ -400,32 +423,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     private fun refreshInfoText() {
-        val f = statFrom()
+
+
         val t = statTo()
+        val offsets = Offset.values()
+        val infos = HashMap<Offset, Info>()
 
         GlobalScope.launch {
+            for (o in offsets) {
+                val f = Date(t.time - o.valueMs)
+                val i = Info()
+                i.avgSpeed = calcAverageSpeed(f, t)
+                i.avgSpeed2 = calcAverageSpeed2(f, t)
+                i.avgSpeed3 = calcAverageSpeed3(f, t)
+                i.avgBearing = calcAvgBearing(f, t)
+                infos.put(o, i)
+            }
 
-
-            val avgSpeed = calcAverageSpeed(f, t)
-            val avgSpeed2 = calcAverageSpeed2(f, t)
-            val avgSpeed3 = calcAverageSpeed3(f, t)
-            val avgBearing = calcAvgBearing(f, t)
+            val b = java.lang.StringBuilder()
+            b.append(" - | avgSpeed | avgSpeed2 | avgSpeed3 | avgBearing\n")
+            for ((o, i) in infos) {
+                b.append(o.name).append(":")
+                b.append(i.avgSpeed).append(" | ")
+                b.append(i.avgSpeed2).append(" | ")
+                b.append(i.avgSpeed3).append(" | ")
+                b.append(i.avgBearing).append(" | ")
+                b.append("\n")
+            }
 
             withContext(Dispatchers.Main) {
                 run {
-                    var text = "average speed: " + avgSpeed
-                    text = text + "\n" + "average speed2: " + avgSpeed2
-                    text = text + "\n" + "average speed3: " + avgSpeed3
-                    text = text + "\n" + "average bearing: " + avgBearing
-
-                    findViewById<TextView>(R.id.infoText).text = text
+                    findViewById<TextView>(R.id.infoText).text = b.toString()
                 }
             }
+
         }
     }
 
     //average of speeds
-    private fun calcAverageSpeed(f: Date, t: Date) = WindstonApp.database.locationDao().averageSpeed(f, t)
+    private fun calcAverageSpeed(f: Date, t: Date): Double? {
+        val averageSpeed = WindstonApp.database.locationDao().averageSpeed(f, t)
+        return averageSpeed?.toDouble()
+    }
 
     // (dist / time) between every waypoints
     private fun calcAverageSpeed2(f: Date, t: Date): Double? {
@@ -483,6 +522,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         this.refreshMarkers()
         registerReceiver(mReceiver, IntentFilter(ACTION_BROADCAST));
     }
+
 
     override fun onPause() {
         super.onPause()

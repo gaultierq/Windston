@@ -75,7 +75,7 @@ public class LocationUpdatesService extends Service {
 
     /**
      * The fastest rate for active location updates. Updates will never be more frequent
-     * than this value.
+     * than this valueMs.
      */
     private static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
             UPDATE_INTERVAL_IN_MILLISECONDS / 2;
