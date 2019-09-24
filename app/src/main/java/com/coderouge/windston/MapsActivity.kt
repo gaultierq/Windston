@@ -33,6 +33,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.maps.android.SphericalUtil
 import com.levitnudi.legacytableview.LegacyTableView
+import com.levitnudi.legacytableview.LegacyTableView.CENTER
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -66,12 +67,12 @@ class Info {
 
 
     fun printValues(): Array<String> {
-        return arrayOf(rou(avgSpeed), rou(avgSpeed2), rou(avgSpeed3), rou(avgBearing))
+        return arrayOf(rou(avgSpeed, 1), rou(avgSpeed2, 1), rou(avgSpeed3, 1), rou(avgBearing, 0))
     }
 
-    private fun rou(v: Double?): String {
-        if (v == null) return "?"
-        return String.format("%.3f", v)
+    private fun rou(v: Double?, i: Int): String {
+        if (v == null) return "-"
+        return String.format("%.${i}f", v)
     }
 }
 
@@ -140,6 +141,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         }
 
 
+        this.buildInfoText()
     }
 
 
@@ -147,9 +149,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
 
         val table = this.findViewById<LegacyTableView>(R.id.legacy_table_view)
+        table.setContentTextSize(40)
+        table.setContentTextAlignment(CENTER)
         val offsets = Offset.values()
 
-        val names = arrayOf("offset", "avgSpeed", "avgSpeed2", "avgSpeed3", "avgBearing")
+        val names = arrayOf("offset", "speed (nm/h)", "speed2 (nm/h)", "speed3 (nm/h)", "bearing")
 
         LegacyTableView.insertLegacyTitle(*names)
         table.setTitle(LegacyTableView.readLegacyTitle())
@@ -422,7 +426,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     private fun refresh() {
         refreshMarkers()
-        buildInfoText()
         refreshTargetText()
     }
 
