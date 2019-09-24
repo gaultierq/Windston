@@ -18,7 +18,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.coderouge.windston.LocationUpdatesService.ACTION_BROADCAST
 import com.coderouge.windston.Utils.ONE_NM_IN_M
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -119,7 +118,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
 
                 if (lat != null && lng != null) {
-                    addWaypoint(lat, lng, Date())
+                    addWaypoint(lat, lng, statTo())
 
                     this.refresh()
 
@@ -403,19 +402,59 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private fun refreshInfoText() {
 
         GlobalScope.launch {
-            val avgSpeed = WindstonApp.database.locationDao().averageSpeed(Date(0), Date())
+            val avgSpeed = calcAverageSpeed()
+            val avgSpeed2 = calcAverageSpeed2()
 
             withContext(Dispatchers.Main) {
                 run {
                     var text = "average speed: " + avgSpeed
+                    text = text + "\n" + "average speed2: " + avgSpeed2
+
                     findViewById<TextView>(R.id.infoText).text = text
                 }
             }
         }
-
-
-
     }
+
+    //average of speeds
+    private fun calcAverageSpeed() = WindstonApp.database.locationDao().averageSpeed(statFrom(), statTo())
+
+    // (dist / time) between every waypoints
+    private fun calcAverageSpeed2(): Double? {
+        val locs = WindstonApp.database.locationDao().selectBetween(statFrom(), statTo())
+
+        var s = -1
+        var res: Double? = null
+
+        while (++s < locs.size) {
+            val cur = locs.get(s)
+            if (s + 1 < locs.size) {
+                var next = locs.get(s + 1)
+
+                val distance = SphericalUtil.computeDistanceBetween(latLng(cur),latLng(next)) / ONE_NM_IN_M
+                val time = (next.date.time - cur.date.time) / 1000.0 / 3600.0
+                if (time <= 0) continue
+                val sp = distance / time
+                if (res == null) {
+                    res = sp
+                }
+                else {
+                    res = (res * s + sp) / (s + 1)
+                }
+
+            }
+            else break
+        }
+        return res
+    }
+
+    private fun latLng(cur: LocationData): LatLng {
+        return LatLng(cur.lat, cur.lng)
+    }
+
+    private fun statTo() = Date()
+
+    private fun statFrom() = Date(0)
 
     override fun onResume() {
         super.onResume()

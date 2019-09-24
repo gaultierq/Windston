@@ -24,6 +24,9 @@ interface LocationDao {
     @Query("SELECT AVG(speed) FROM locationdata WHERE date BETWEEN (:from) AND (:to)")
     fun averageSpeed(from: Date, to: Date): Float?
 
+    @Query("SELECT * FROM locationdata WHERE date BETWEEN (:from) AND (:to)")
+    fun selectBetween(from: Date, to: Date): List<LocationData>
+
     @Insert
     fun insertAll(vararg locationData: LocationData)
 
