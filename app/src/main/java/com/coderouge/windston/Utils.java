@@ -36,6 +36,8 @@ class Utils {
     public static final int ONE_MINUTE = MIN_IN_S * S_IN_MS;
     public static final int ONE_NM_IN_M = 1852;
     public static final String KEY_LAST_SENT_DATE = "KEY_LAST_SENT_DATE";
+    public static final String KEY_TARGET_BEARING = "KEY_TARGET_BEARING";
+    public static final String KEY_OPTIONS_OPENED = "KEY_OPTIONS_OPENED";
     public static final Date START_DATE = startDate();
 
 
@@ -78,6 +80,14 @@ class Utils {
 //                DateFormat.getDateTimeInstance().format(new Date()));
     }
 
+    static Date readLastSentDate(Context context) {
+        long dateMs = PreferenceManager.getDefaultSharedPreferences(context)
+                .getLong(KEY_LAST_SENT_DATE, 0);
+
+        if (dateMs == 0) return START_DATE;
+        return new Date(dateMs);
+    }
+
     static void writeLastSentDate(Context context, Date lastSent) {
         PreferenceManager.getDefaultSharedPreferences(context)
                 .edit()
@@ -85,12 +95,30 @@ class Utils {
                 .apply();
     }
 
-    static Date readLastSentDate(Context context) {
-        long dateMs = PreferenceManager.getDefaultSharedPreferences(context)
-                .getLong(KEY_LAST_SENT_DATE, 0);
+    static Long readTargetBearing(Context context) {
+        long aLong = PreferenceManager.getDefaultSharedPreferences(context)
+                .getLong(KEY_TARGET_BEARING, -1);
+        if (aLong == -1) return null;
+        return aLong;
+    }
 
-        if (dateMs == 0) return START_DATE;
-        return new Date(dateMs);
+    static void writeTargetBearing(Context context, Long targetBearing) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putLong(KEY_TARGET_BEARING, targetBearing == null ? -1 : targetBearing)
+                .apply();
+    }
+
+    static boolean readOptionsOpened(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(KEY_OPTIONS_OPENED, false);
+    }
+
+    static void writeOptionsOpened(Context context, boolean opened) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putBoolean(KEY_OPTIONS_OPENED, opened)
+                .apply();
     }
 
     public static void autoLaunchVivo(Context context) {

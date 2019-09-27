@@ -8,6 +8,8 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -145,28 +147,63 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             onFloatClick()
         }
 
+        configureChangeLocation()
+
+        this.createInfoTable()
+
+        findViewById<TextView>(R.id.lastSentDate).setOnClickListener { displayLastSentDialog() }
+        refreshMinDate()
+
+        configureTargetBearing()
+        refreshTargetBearing()
+    }
+
+    private fun configureTargetBearing() {
+        findViewById<EditText>(R.id.targetBearing).addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+
+            override fun afterTextChanged(p0: Editable?) {
+                val value = getDisplayedTargetBearing()
+                Utils.writeTargetBearing(this@MapsActivity, value)
+                refresh()
+            }
+
+        })
+    }
+
+    private fun getDisplayedTargetBearing() = findViewById<TextView>(R.id.targetBearing).text.toString().toLongOrNull()
+
+
+    private fun refreshTargetBearing() {
+        val tb = Utils.readTargetBearing(this)
+        if (tb != getDisplayedTargetBearing()) {
+            findViewById<EditText>(R.id.targetBearing).setText(tb?.toString())
+        }
+    }
+
+    private fun configureChangeLocation() {
         this.findViewById<SwitchCompat>(R.id.removeLocation).setOnCheckedChangeListener { view, isChecked ->
             this.removeMode = isChecked
         }
-        this.findViewById<SeekBar>(R.id.filterDistance).setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(p0: SeekBar?) {
-            }
+        this.findViewById<SeekBar>(R.id.filterDistance)
+            .setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onStartTrackingTouch(p0: SeekBar?) {
+                }
 
-            override fun onStopTrackingTouch(p0: SeekBar?) {
-            }
+                override fun onStopTrackingTouch(p0: SeekBar?) {
+                }
 
-            override fun onProgressChanged(view: SeekBar?, progress: Int, fromUser: Boolean) {
-                //persist
-                filterMinDistMiles = progress
-                findViewById<TextView>(R.id.filterDistanceText).text = "Filter distance (" + progress + "nm)"
-                refreshMarkers()
-            }
-        })
-
-        this.createInfoTable()
-        findViewById<TextView>(R.id.lastSentDate).setOnClickListener { displayLastSentDialog() }
-
-        refreshMinDate()
+                override fun onProgressChanged(view: SeekBar?, progress: Int, fromUser: Boolean) {
+                    //persist
+                    filterMinDistMiles = progress
+                    findViewById<TextView>(R.id.filterDistanceText).text = "Filter distance (" + progress + "nm)"
+                    refreshMarkers()
+                }
+            })
     }
 
     private fun refreshMinDate() {
@@ -367,8 +404,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     private fun toggleOptions() {
-        val v = findViewById<View>(R.id.options)
-        v.visibility = if (v.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        Utils.writeOptionsOpened(this, !Utils.readOptionsOpened(this))
+        refresh()
+    }
+
+    private fun refreshOptionsVisibility() {
+        findViewById<View>(R.id.options).visibility = if (Utils.readOptionsOpened(this)) View.VISIBLE else View.GONE
     }
 
     private fun purgeWaypoints() {
@@ -522,6 +563,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private fun refresh() {
         refreshMarkers()
         refreshTargetText()
+        refreshTargetBearing()
+        refreshOptionsVisibility()
 
     }
 
