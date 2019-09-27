@@ -12,6 +12,9 @@ interface LocationDao {
     @Query("SELECT * FROM locationdata")
     fun getAll(): List<LocationData>
 
+    @Query("SELECT * FROM locationdata WHERE date > (:minDate)")
+    fun getAllAfter(minDate: Date): List<LocationData>
+
     @Query("SELECT * FROM locationdata ORDER BY date DESC limit 10")
     fun getTail(): List<LocationData>
 

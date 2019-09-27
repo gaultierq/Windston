@@ -23,9 +23,9 @@ import android.content.Intent;
 import android.location.Location;
 import android.preference.PreferenceManager;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.maps.android.SphericalUtil;
 
-import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 class Utils {
@@ -35,6 +35,21 @@ class Utils {
     public static final int S_IN_MS = 1000;
     public static final int ONE_MINUTE = MIN_IN_S * S_IN_MS;
     public static final int ONE_NM_IN_M = 1852;
+    public static final String KEY_LAST_SENT_DATE = "KEY_LAST_SENT_DATE";
+    public static final Date START_DATE = startDate();
+
+
+    private static Date startDate() {
+        String input = "01/06/2019";
+
+        SimpleDateFormat parser = new SimpleDateFormat("dd/M/yyyy");
+        try {
+            return parser.parse(input);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     static int getUpdateIntervalMs(Context context) {
         String s = PreferenceManager.getDefaultSharedPreferences(context)
@@ -61,6 +76,21 @@ class Utils {
         return "Tracking active";
 //        return context.getString(R.string.location_updated,
 //                DateFormat.getDateTimeInstance().format(new Date()));
+    }
+
+    static void writeLastSentDate(Context context, Date lastSent) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putLong(KEY_LAST_SENT_DATE, lastSent.getTime())
+                .apply();
+    }
+
+    static Date readLastSentDate(Context context) {
+        long dateMs = PreferenceManager.getDefaultSharedPreferences(context)
+                .getLong(KEY_LAST_SENT_DATE, 0);
+
+        if (dateMs == 0) return START_DATE;
+        return new Date(dateMs);
     }
 
     public static void autoLaunchVivo(Context context) {

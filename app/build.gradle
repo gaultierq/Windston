@@ -60,4 +60,6 @@ dependencies {
 
     implementation 'com.github.levitnudi:LegacyTableView:1.2'
 
+    implementation "com.github.Kunzisoft:Android-SwitchDateTimePicker:2.0"
+
 }

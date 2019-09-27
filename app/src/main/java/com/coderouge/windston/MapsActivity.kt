@@ -12,10 +12,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.SeekBar
-import android.widget.Switch
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
@@ -34,6 +31,7 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.maps.android.SphericalUtil
+import com.kunzisoft.switchdatetime.SwitchDateTimeDialogFragment
 import com.levitnudi.legacytableview.LegacyTableView
 import com.levitnudi.legacytableview.LegacyTableView.CENTER
 import kotlinx.coroutines.Dispatchers
@@ -132,6 +130,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     }
 
+    @SuppressLint("NewApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
@@ -165,6 +164,50 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         })
 
         this.createInfoTable()
+        findViewById<TextView>(R.id.lastSentDate).setOnClickListener { displayLastSentDialog() }
+
+        refreshMinDate()
+    }
+
+    private fun refreshMinDate() {
+        findViewById<TextView>(R.id.lastSentDate).setText(Utils.readLastSentDate(this).toString())
+    }
+
+    private fun displayLastSentDialog() {
+        // Initialize
+        val dateTimeDialogFragment = SwitchDateTimeDialogFragment.newInstance(
+            "Last Sent Date",
+            "OK",
+            "Cancel"
+        );
+
+        // Assign values
+        dateTimeDialogFragment.startAtCalendarView();
+        dateTimeDialogFragment.set24HoursMode(true);
+        dateTimeDialogFragment.setDefaultDateTime(Utils.readLastSentDate(this));
+
+        // Define new day and month format
+        try {
+            dateTimeDialogFragment.setSimpleDateMonthAndDayFormat(SimpleDateFormat("dd MMMM", Locale.getDefault()));
+        } catch (e: SwitchDateTimeDialogFragment.SimpleDateMonthAndDayFormatException) {
+            Log.e(TAG, e.message);
+        }
+
+        // Set listener
+        dateTimeDialogFragment.setOnButtonClickListener(object : SwitchDateTimeDialogFragment.OnButtonClickListener {
+            override fun onPositiveButtonClick(date: Date?) {
+                Utils.writeLastSentDate(this@MapsActivity, date)
+                refresh()
+                findViewById<TextView>(R.id.lastSentDate).setText(date.toString())
+            }
+
+            override fun onNegativeButtonClick(date: Date?) {
+
+            }
+        });
+
+        // Show
+        dateTimeDialogFragment.show(getSupportFragmentManager(), "dialog_time");
     }
 
 
@@ -479,6 +522,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private fun refresh() {
         refreshMarkers()
         refreshTargetText()
+
     }
 
     private fun refreshMarkers() {
@@ -509,12 +553,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     private fun selectFilterMarkers(): ArrayList<LocationData> {
-        val allMarkers = WindstonApp.database.locationDao().getAll()
 
+        val minDate = Utils.readLastSentDate(this)
+        val allMarkers = WindstonApp.database.locationDao().getAllAfter(minDate)
 
         //filtering
         val filteredMarkers = ArrayList<LocationData>()
         val minDistNm = this.filterMinDistMiles
+
 
         var last: LocationData? = null
         //filter
