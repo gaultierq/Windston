@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -41,6 +43,7 @@ import kotlinx.coroutines.withContext
 import net.hockeyapp.android.CrashManager
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
 
@@ -58,16 +61,24 @@ enum class Offset(val valueMs: Int, val disp: String) {
     ONE_WEEK(7 * 24 * 60 * 60 * 1000, "1w"),
 }
 
+enum class InfoType(val title: String, val format: Int) {
+    SENSOR_SPEED("sensor", 1),
+    AVG_SPEED("di/ti", 1),
+    APROX_SPEED("Df/Tf", 1),
+    BEARING("bearing", 0),
+}
+
 
 class Info {
-    var avgSpeed: Double? = null
-    var avgSpeed2: Double? = null
-    var avgSpeed3: Double? = null
-    var avgBearing: Double? = null
 
+    val values : TreeMap<InfoType, Double?> = TreeMap()
+
+    fun setValue(type: InfoType, value: Double?) {
+        this.values.put(type, value)
+    }
 
     fun printValues(): Array<String> {
-        return arrayOf(rou(avgSpeed, 1), rou(avgSpeed2, 1), rou(avgSpeed3, 1), rou(avgBearing, 0))
+        return this.values.entries.map { (k, v) -> rou(v, k.format) }.toTypedArray()
     }
 
     private fun rou(v: Double?, i: Int): String {
@@ -90,6 +101,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy HH:mm:ss")
 
     private var mLocationManager : LocationManager? = null
+    private var filterMinDistMiles = 0
 
 
     private val TAG = "MapsActivity"
@@ -137,57 +149,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         this.findViewById<SwitchCompat>(R.id.removeLocation).setOnCheckedChangeListener { view, isChecked ->
             this.removeMode = isChecked
         }
+        this.findViewById<SeekBar>(R.id.filterDistance).setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(p0: SeekBar?) {
+            }
 
+            override fun onStopTrackingTouch(p0: SeekBar?) {
+            }
 
-        this.buildInfoTable()
+            override fun onProgressChanged(view: SeekBar?, progress: Int, fromUser: Boolean) {
+                //persist
+                filterMinDistMiles = progress
+                findViewById<TextView>(R.id.filterDistanceText).text = "Filter distance (" + progress + "nm)"
+                refreshMarkers()
+            }
+        })
+
+        this.createInfoTable()
     }
 
 
-    private fun buildInfoTable() {
+    private fun createInfoTable() {
 
 
         val table = this.findViewById<LegacyTableView>(R.id.legacy_table_view)
         table.setContentTextSize(40)
         table.setContentTextAlignment(CENTER)
+        table.setTitleTextAlignment(CENTER)
+        table.setTitleTextSize(40)
 
         //TODO: check order
         val offsets = Offset.values()
 
-        val names = arrayOf("offset", "speed", "speed2", "speed3", "bearing")
-
-        LegacyTableView.insertLegacyTitle(*names)
+        LegacyTableView.insertLegacyTitle("t", *InfoType.values().map { v ->  v.title}.toTypedArray())
         table.setTitle(LegacyTableView.readLegacyTitle())
 
-        val t = statTo()
-        val infos = HashMap<Offset, Info>()
 
         GlobalScope.launch {
-
-            var prev: Offset? = null
-
-            fun offseted(o: Offset) = Date(t.time - o.valueMs)
+            val infos = readInfos(offsets)
 
             for (o in offsets) {
-                val from = offseted(o)
-
-                if (prev != null) {
-
-                    val to = offseted(prev)
-                    val cb = WindstonApp.database.locationDao().countBetween(from, to)
-                    if (cb == 0) {
-                        //no data between this offset and the prev with offset
-                        continue
-                    }
-                }
-
-                infos.put(o, makeInfo(from, t))
-                prev = o
-            }
-
-            for (o in offsets) {
-                val i = infos.get(o)
-                i?.let {
-                    LegacyTableView.insertLegacyContent(o.disp, *i.printValues());
+                val info = infos.get(o)
+                info?.let {
+                    LegacyTableView.insertLegacyContent(o.disp, *info.printValues());
                 }
 
             }
@@ -202,12 +205,39 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         }
     }
 
+    private fun readInfos(offsets: Array<Offset>): HashMap<Offset, Info> {
+        val t = statTo()
+        val infos = HashMap<Offset, Info>()
+
+        var prev: Offset? = null
+
+        fun offseted(o: Offset) = Date(t.time - o.valueMs)
+
+        for (o in offsets) {
+            val from = offseted(o)
+
+            if (prev != null) {
+
+                val to = offseted(prev)
+                val cb = WindstonApp.database.locationDao().countBetween(from, to)
+                if (cb == 0) {
+                    //no data between this offset and the prev with offset
+                    continue
+                }
+            }
+
+            infos.put(o, makeInfo(from, t))
+            prev = o
+        }
+        return infos
+    }
+
     private fun makeInfo(f: Date, t: Date): Info {
         val i = Info()
-        i.avgSpeed = calcAverageSpeed(f, t)
-        i.avgSpeed2 = calcAverageSpeed2(f, t)
-        i.avgSpeed3 = calcAverageSpeed3(f, t)
-        i.avgBearing = calcAvgBearing(f, t)
+        i.setValue(InfoType.SENSOR_SPEED, calcSensorSpeed(f, t))
+        i.setValue(InfoType.AVG_SPEED, calcAverageSpeed(f, t))
+        i.setValue(InfoType.APROX_SPEED, calcAverageSpeed3(f, t))
+        i.setValue(InfoType.BEARING, calcAvgBearing(f, t))
         return i
     }
 
@@ -284,12 +314,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             R.id.action_send -> sendEmail()
             R.id.action_purge -> purgeWaypoints()
             R.id.action_settings -> showSettings()
+            R.id.action_options-> toggleOptions()
         }
         return true
     }
 
     private fun showSettings() {
         startActivity(Intent(this, SettingsActivity::class.java))
+    }
+
+    private fun toggleOptions() {
+        val v = findViewById<View>(R.id.options)
+        v.visibility = if (v.visibility == View.VISIBLE) View.GONE else View.VISIBLE
     }
 
     private fun purgeWaypoints() {
@@ -326,11 +362,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     private fun bodyText(): String? {
-//        val sharedPref: SharedPreferences = getSharedPreferences(PREF_NAME, PRIVATE_MODE)
-//        val waypoints = sharedPref.getStringSet(PREF_NAME, HashSet())
-//        return join(waypoints, "\n===\n")
 
-        return WindstonApp.database.locationDao().getAll()
+        return selectFilterMarkers()
             .map { loc -> "latitude: ${loc.lat}\nlongitude: ${loc.lng}\ndate: ${DATE_FORMAT.format(loc.date)}" }
             .joinToString("\n===\n")
 
@@ -451,13 +484,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private fun refreshMarkers() {
         GlobalScope.launch {
 
-            //            val tail = WindstonApp.database.locationDao().getTail()
-            val allMarkers = WindstonApp.database.locationDao().getAll()
+            val filteredMarkers = selectFilterMarkers()
+
 
             withContext(Dispatchers.Main) {
                 run {
                     val remainingKeys = HashSet(mMarkers.keys)
-                    allMarkers.forEach { loc ->
+                    filteredMarkers.forEach { loc ->
 
                         val key = markerKey(loc)
 
@@ -474,6 +507,34 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             }
         }
     }
+
+    private fun selectFilterMarkers(): ArrayList<LocationData> {
+        val allMarkers = WindstonApp.database.locationDao().getAll()
+
+
+        //filtering
+        val filteredMarkers = ArrayList<LocationData>()
+        val minDistNm = this.filterMinDistMiles
+
+        var last: LocationData? = null
+        //filter
+        fun addIt(m: LocationData) {
+            filteredMarkers.add(m)
+            last = m
+        }
+
+        for (m in allMarkers) {
+            if (last == null || milesBetween(m, last!!) > minDistNm) {
+                addIt(m)
+            }
+        }
+        return filteredMarkers
+    }
+
+    private fun milesBetween(
+        left: LocationData,
+        right: LocationData
+    ) = SphericalUtil.computeDistanceBetween(LatLng(left.lat, left.lng), LatLng(right.lat, right.lng)) / ONE_NM_IN_M
 
     private suspend fun removeLocation(latitude: Double, longitude: Double) {
         withContext(Dispatchers.IO) {
@@ -502,13 +563,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     //average of speeds
-    private fun calcAverageSpeed(f: Date, t: Date): Double? {
+    private fun calcSensorSpeed(f: Date, t: Date): Double? {
         val averageSpeed = WindstonApp.database.locationDao().averageSpeed(f, t)
         return averageSpeed?.toDouble()
     }
 
     // (dist / time) between every waypoints
-    private fun calcAverageSpeed2(f: Date, t: Date): Double? {
+    private fun calcAverageSpeed(f: Date, t: Date): Double? {
         val locs = WindstonApp.database.locationDao().selectBetween(f, t)
 
         var res = 0.0

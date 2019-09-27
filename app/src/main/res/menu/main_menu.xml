@@ -21,6 +21,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_options"
+        android:orderInCategory="100"
+        android:title="Toggle options"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:title="Settings"

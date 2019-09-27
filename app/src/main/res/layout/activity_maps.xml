@@ -36,20 +36,36 @@
         android:text=""
         />
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/removeLocation"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="remove location"
-        />
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:id="@+id/options"
 
-    <TextView
-        android:id="@+id/infoText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        />
+        >
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/removeLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:text="Remove locations"
+            />
 
+        <TextView
+            android:id="@+id/filterDistanceText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            />
+
+        <SeekBar android:id="@+id/filterDistance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:indeterminate="false"
+            android:progress="1" />
+    </LinearLayout>
 
     <ScrollView
         android:layout_width="match_parent"
