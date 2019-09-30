@@ -279,7 +279,8 @@ public class LocationUpdatesService extends Service {
                 location.getLongitude(),
                 new Date(),
                 location.getSpeed(),
-                location.getBearing()
+                location.getBearing(),
+                location.getAccuracy()
         );
         InsertAsyncTask task = new InsertAsyncTask(locationData, this);
         task.execute();

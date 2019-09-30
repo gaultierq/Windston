@@ -11,7 +11,8 @@ data class LocationData(
     @ColumnInfo(name = "lng") val lng: Double,
     @ColumnInfo(name = "date") val date: Date,
     @ColumnInfo(name = "speed") val speed: Float?,
-    @ColumnInfo(name = "bearing") val bearing: Float?
+    @ColumnInfo(name = "bearing") val bearing: Float?,
+    @ColumnInfo(name = "accuracy") val accuracy: Float?
 ) {
     @PrimaryKey(autoGenerate = true) var localuid: Int = 0;
     @ColumnInfo(name = "uid") var uid: Int? = null;
