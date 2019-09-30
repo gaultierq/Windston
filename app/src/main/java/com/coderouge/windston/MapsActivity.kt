@@ -41,6 +41,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hockeyapp.android.CrashManager
+import net.hockeyapp.android.utils.Util
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -117,7 +118,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     private val DATE_FORMAT = SimpleDateFormat("dd/M/yyyy HH:mm:ss")
 
     private var mLocationManager : LocationManager? = null
-    private var filterMinDistMiles = 0
+    private var filterMinDistMeters = 0
 
 
     private val TAG = "MapsActivity"
@@ -201,6 +202,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         }
     }
 
+    val PROGESS = arrayOf(0, 10, 100, 300, 500, 1000, 10000, 50000, 100000)
+
     private fun configureChangeLocation() {
         this.findViewById<SwitchCompat>(R.id.removeLocation).setOnCheckedChangeListener { view, isChecked ->
             this.removeMode = isChecked
@@ -214,9 +217,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
                 }
 
                 override fun onProgressChanged(view: SeekBar?, progress: Int, fromUser: Boolean) {
+
                     //persist
-                    filterMinDistMiles = progress
-                    findViewById<TextView>(R.id.filterDistanceText).text = "Filter distance (" + progress + "nm)"
+                    filterMinDistMeters = PROGESS[progress]
+                    findViewById<TextView>(R.id.filterDistanceText).text = "Filter distance (" + filterMinDistMeters + "m)"
                     refreshMarkers()
                 }
             })
@@ -643,7 +647,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
         //filtering
         val filteredMarkers = ArrayList<LocationData>()
-        val minDistNm = this.filterMinDistMiles
+        val minDistNm = this.filterMinDistMeters / Utils.ONE_NM_IN_M.toDouble()
 
 
         var last: LocationData? = null
