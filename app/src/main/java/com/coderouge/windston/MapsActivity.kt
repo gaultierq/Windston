@@ -61,10 +61,18 @@ enum class Offset(val valueMs: Int, val disp: String) {
     ONE_WEEK(7 * 24 * 60 * 60 * 1000, "1w"),
 }
 
+// ¡™£¢∞§¶•ªº––≠œ∑´´†¥¨ˆˆπ“‘åß∂ƒ©˙∆˚¬…æ«Ω≈ç√∫˜˜≤≥÷
+//⁄€‹›ﬁ°·‚—±Œ„´ˇÁ¨ˆØ∏”’ÅÍÎ¸˜Â¯˘¿ÆÚÒÔÓ˝ÅÎ’”∏Ø∏”’
 enum class InfoType(val title: String, val format: Int) {
-    SENSOR_SPEED("sensor", 1),
+//    SENSOR_SPEED("sensor", 1),
     AVG_SPEED("di/ti", 1),
-    APROX_SPEED("Df/Tf", 1),
+    SUM_DIST("∑di", 0),
+    SUM_DIST_PROJ("proj ∑di", 0),
+    GLOBAL_SPEED("Df/Tf", 1),
+    GLOBAL_DIST("Df", 0),
+    GLOBAL_DIST_PROJ("proj Df", 0),
+    AVG_SPEED_PROJ("proj di/ti", 1),
+    GLOBAL_SPEED_PROJ("proj \nDf/Tf", 1),
     BEARING("bearing", 0),
 }
 
@@ -268,8 +276,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         //TODO: check order
         val offsets = Offset.values()
 
-
-
         GlobalScope.launch {
             val infos = readInfos(offsets)
 
@@ -280,12 +286,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
                 for (type in InfoType.values()) {
                     val v = info.values.get(type)
-//                    v?.let {
                     if (!values.containsKey(type)) values.put(type, TreeMap())
                     val ll = values.get(type)!!
                     ll.put(k, v)
                     if (ll.size > cCount) cCount  = ll.size
-//                    }
                 }
             }
             val offf = TreeSet<Offset>()
@@ -293,15 +297,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
                 offf.addAll(v.keys)
                 LegacyTableView.insertLegacyContent(k.title, *v.values.map { vv -> Info.round(vv, k)}.toTypedArray());
             }
-//            val inverted = TreeMap<Offset, Info>()
-//            for (o in offsets) {
-//                val info = infos.get(o)
-//                info?.let {
-//                    inverted.put(o, info)
-////                    LegacyTableView.insertLegacyContent(o.disp, *info.printValues());
-//                }
-//            }
-
 
             withContext(Dispatchers.Main) {
                 run {
@@ -346,9 +341,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
     private fun makeInfo(f: Date, t: Date): Info {
         val i = Info()
-        i.setValue(InfoType.SENSOR_SPEED, calcSensorSpeed(f, t))
+//        i.setValue(InfoType.SENSOR_SPEED, calcSensorSpeed(f, t))
         i.setValue(InfoType.AVG_SPEED, calcAverageSpeed(f, t))
-        i.setValue(InfoType.APROX_SPEED, calcAverageSpeed3(f, t))
+        i.setValue(InfoType.GLOBAL_SPEED, calcGlobalSpeed(f, t))
+
+        i.setValue(InfoType.GLOBAL_DIST, calcGlobalDist(f, t))
+        i.setValue(InfoType.SUM_DIST, calcSumDist(f, t))
+
+        val readTargetBearing = Utils.readTargetBearing(this)
+        if (readTargetBearing != null) {
+            val tbd = readTargetBearing.toDouble()
+            i.setValue(InfoType.AVG_SPEED_PROJ, calcAverageSpeed(f, t, tbd))
+            i.setValue(InfoType.GLOBAL_SPEED_PROJ, calcGlobalSpeed(f, t, tbd))
+
+            i.setValue(InfoType.GLOBAL_DIST_PROJ, calcGlobalDist(f, t, tbd))
+            i.setValue(InfoType.SUM_DIST_PROJ, calcSumDist(f, t, tbd))
+
+        }
         i.setValue(InfoType.BEARING, calcAvgBearing(f, t))
         return i
     }
@@ -690,7 +699,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     // (dist / time) between every waypoints
-    private fun calcAverageSpeed(f: Date, t: Date): Double? {
+    private fun calcAverageSpeed(f: Date, t: Date, proj: Double? = null): Double? {
         val locs = WindstonApp.database.locationDao().selectBetween(f, t)
 
         var res = 0.0
@@ -698,19 +707,42 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         for ((s, cur) in locs.withIndex()) {
             if (s + 1 >= locs.size) break
             val next = locs.get(s + 1)
-            val sp = calcSpeed(cur, next)
+            val sp = calcSpeed(cur, next, proj)
             if (sp == null) continue
             res = (res * s + sp) / (s + 1)
         }
         return res
     }
 
+    // (dist / time) between every waypoints
+    private fun calcSumDist(f: Date, t: Date, proj: Double? = null): Double? {
+        val locs = WindstonApp.database.locationDao().selectBetween(f, t)
+
+        var res = 0.0
+
+        for ((s, cur) in locs.withIndex()) {
+            if (s + 1 >= locs.size) break
+            val next = locs.get(s + 1)
+            val dist = calcDist(cur, next, proj)
+            res += dist
+        }
+        return res
+    }
+
     // (dist_final / time_total)
-    private fun calcAverageSpeed3(f: Date, t: Date): Double? {
+    private fun calcGlobalSpeed(f: Date, t: Date, proj: Double? = null): Double? {
         val locFrom = WindstonApp.database.locationDao().selectJustAfter(f)
         val locTo = WindstonApp.database.locationDao().selectJustBefore(t)
         if (locFrom == null || locTo == null) return null
-        return calcSpeed(locFrom, locTo)
+        return calcSpeed(locFrom, locTo, proj)
+    }
+
+    // (dist_final / time_total)
+    private fun calcGlobalDist(f: Date, t: Date, proj: Double? = null): Double? {
+        val locFrom = WindstonApp.database.locationDao().selectJustAfter(f)
+        val locTo = WindstonApp.database.locationDao().selectJustBefore(t)
+        if (locFrom == null || locTo == null) return null
+        return calcDist(locFrom, locTo, proj)
     }
 
     private fun calcAvgBearing(f: Date, t: Date): Double? {
@@ -721,13 +753,30 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
     private fun calcSpeed(
-        cur: LocationData,
-        next: LocationData
+        left: LocationData,
+        right: LocationData,
+        proj: Double? = null
     ): Double? {
-        val distance = SphericalUtil.computeDistanceBetween(latLng(cur), latLng(next)) / ONE_NM_IN_M
-        val time = (next.date.time - cur.date.time) / 1000.0 / 3600.0
+        val distance = calcDist(left, right, proj)
+
+        val time = (right.date.time - left.date.time) / 1000.0 / 3600.0
         if (time <=0) return null
         return distance / time
+    }
+
+    private fun calcDist(
+        left: LocationData,
+        right: LocationData,
+        proj: Double?
+    ): Double {
+        var distance = SphericalUtil.computeDistanceBetween(latLng(left), latLng(right)) / ONE_NM_IN_M
+
+        if (proj != null) {
+            val b = Utils.bearing(latLng(left), latLng(right))
+            val diff = (360 + proj - b) % 180
+            distance *= Math.cos(Math.toRadians(diff));
+        }
+        return distance
     }
 
     private fun latLng(cur: LocationData): LatLng {
