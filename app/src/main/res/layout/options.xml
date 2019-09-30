@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone"
+    android:id="@+id/options"
+
+    tools:showIn="@layout/activity_maps">
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/removeLocation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:text="Remove locations" />
+
+    <TextView
+        android:id="@+id/filterDistanceText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp" />
+
+    <SeekBar
+        android:id="@+id/filterDistance"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:indeterminate="false"
+        android:progress="1" />
+
+    <TextView
+        android:id="@+id/lastSentDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="12dp" />
+
+    <EditText
+        android:id="@+id/targetBearing"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:digits="0123456789."
+        android:inputType="numberDecimal"
+        android:padding="12dp" />
+
+</LinearLayout>
