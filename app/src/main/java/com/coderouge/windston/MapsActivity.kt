@@ -73,6 +73,17 @@ class Info {
 
     val values : TreeMap<InfoType, Double?> = TreeMap()
 
+    companion object {
+        fun round(v: Double?, it: InfoType): String {
+            return rou(v, it.format)
+        }
+
+        private fun rou(v: Double?, i: Int): String {
+            if (v == null) return "-"
+            return String.format("%.${i}f", v)
+        }
+    }
+
     fun setValue(type: InfoType, value: Double?) {
         this.values.put(type, value)
     }
@@ -81,10 +92,7 @@ class Info {
         return this.values.entries.map { (k, v) -> rou(v, k.format) }.toTypedArray()
     }
 
-    private fun rou(v: Double?, i: Int): String {
-        if (v == null) return "-"
-        return String.format("%.${i}f", v)
-    }
+
 }
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
@@ -260,23 +268,47 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         //TODO: check order
         val offsets = Offset.values()
 
-        LegacyTableView.insertLegacyTitle("t", *InfoType.values().map { v ->  v.title}.toTypedArray())
-        table.setTitle(LegacyTableView.readLegacyTitle())
 
 
         GlobalScope.launch {
             val infos = readInfos(offsets)
 
-            for (o in offsets) {
-                val info = infos.get(o)
-                info?.let {
-                    LegacyTableView.insertLegacyContent(o.disp, *info.printValues());
-                }
 
+            val values = TreeMap<InfoType, TreeMap<Offset, Double?>>()
+            var cCount = 0
+            for ((k,info) in infos) {
+
+                for (type in InfoType.values()) {
+                    val v = info.values.get(type)
+//                    v?.let {
+                    if (!values.containsKey(type)) values.put(type, TreeMap())
+                    val ll = values.get(type)!!
+                    ll.put(k, v)
+                    if (ll.size > cCount) cCount  = ll.size
+//                    }
+                }
             }
+            val offf = TreeSet<Offset>()
+            for ((k, v) in values) {
+                offf.addAll(v.keys)
+                LegacyTableView.insertLegacyContent(k.title, *v.values.map { vv -> Info.round(vv, k)}.toTypedArray());
+            }
+//            val inverted = TreeMap<Offset, Info>()
+//            for (o in offsets) {
+//                val info = infos.get(o)
+//                info?.let {
+//                    inverted.put(o, info)
+////                    LegacyTableView.insertLegacyContent(o.disp, *info.printValues());
+//                }
+//            }
+
 
             withContext(Dispatchers.Main) {
                 run {
+
+                    LegacyTableView.insertLegacyTitle("type", *offf.map { v ->  v.disp}.toTypedArray())
+                    table.setTitle(LegacyTableView.readLegacyTitle())
+
                     table.setContent(LegacyTableView.readLegacyContent())
                     table.build();
                 }

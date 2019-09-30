@@ -21,7 +21,7 @@
         <com.levitnudi.legacytableview.LegacyTableView
             android:id="@+id/legacy_table_view"
             android:layout_width="match_parent"
-            android:layout_height="600dp"
+            android:layout_height="wrap_content"
             android:background="@color/colorPrimary" />
     </LinearLayout>
 

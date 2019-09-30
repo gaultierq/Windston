@@ -36,12 +36,26 @@
         android:layout_height="wrap_content"
         android:padding="12dp" />
 
-    <EditText
-        android:id="@+id/targetBearing"
-        android:layout_width="100dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:digits="0123456789."
-        android:inputType="numberDecimal"
-        android:padding="12dp" />
+        android:padding="12dp"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="target bearing: "
+            android:paddingRight="6dp"
+            />
+        <EditText
+            android:id="@+id/targetBearing"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:digits="0123456789."
+            android:inputType="numberDecimal"
+            android:padding="12dp" />
+
+    </LinearLayout>
+
 
 </LinearLayout>
