@@ -14,10 +14,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
 import android.widget.*
-import android.widget.LinearLayout.*
-import android.widget.LinearLayout.LayoutParams.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
@@ -37,8 +34,6 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.maps.android.SphericalUtil
 import com.kunzisoft.switchdatetime.SwitchDateTimeDialogFragment
-import com.levitnudi.legacytableview.LegacyTableView
-import com.levitnudi.legacytableview.LegacyTableView.CENTER
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -258,51 +253,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         GlobalScope.launch {
             val infos = readInfos(offsets)
 
-            val values = TreeMap<InfoType, TreeMap<Offset, Double?>>()
-            var cCount = 0
-            for ((k,info) in infos) {
+            val datas = tableData(infos)
 
-                for (type in InfoType.values()) {
-                    val v = info.values.get(type)
-                    if (!values.containsKey(type)) values.put(type, TreeMap())
-                    val ll = values.get(type)!!
-                    ll.put(k, v)
-                    if (ll.size > cCount) cCount  = ll.size
-                }
-            }
-            val offf = TreeSet<Offset>()
-            for ((k, v) in values) {
-                offf.addAll(v.keys)
-                LegacyTableView.insertLegacyContent(k.title, *v.values.map { vv -> Info.round(vv, k)}.toTypedArray());
-            }
+            val titles = tableTitles(datas)
 
             withContext(Dispatchers.Main) {
                 run {
 
-                    val container = this@MapsActivity.findViewById<LinearLayout>(R.id.legacy_table_view_container)
-                    fun legTab() = container.findViewById<LegacyTableView>(R.id.legacy_table_view)
+                    val tab = findViewById<NiceTable>(R.id.niceTab)
 
-                    legTab().let { l ->  container.removeView(l)}
-
-                    layoutInflater.inflate(R.layout.leg_table, container)
-
-                    val table = legTab()
-                    table.resetVariables() //omg
-                    table.setContentTextSize(40)
-                    table.setContentTextAlignment(CENTER)
-                    table.setTitleTextAlignment(CENTER)
-                    table.setTitleTextSize(40)
-
-                    LegacyTableView.insertLegacyTitle("type", *offf.map { v ->  v.disp}.toTypedArray())
-                    table.setTitle(LegacyTableView.readLegacyTitle())
-
-                    table.setContent(LegacyTableView.readLegacyContent())
-
-                    table.build();
+                    //List<List<String>>
+                    tab.setHeaders(arrayListOf("type", *titles.map { v ->  v.disp}.toTypedArray()));
+                    tab.setColumnNames(datas.keys.map{k -> k.title})
+                    tab.setData(datas.map { (it, v) -> v.map { (_, v) -> Info.round(v, it) }});
+                    tab.refresh();
                 }
             }
 
         }
+    }
+
+    private fun tableTitles(values: TreeMap<InfoType, TreeMap<Offset, Double?>>): TreeSet<Offset> {
+        val titles = TreeSet<Offset>()
+        for ((k, v) in values) {
+            titles.addAll(v.keys)
+        }
+        return titles
+    }
+
+    private fun tableData(infos: HashMap<Offset, Info>): TreeMap<InfoType, TreeMap<Offset, Double?>> {
+        val values = TreeMap<InfoType, TreeMap<Offset, Double?>>()
+        var cCount = 0
+        for ((k, info) in infos) {
+
+            for (type in InfoType.values()) {
+                val v = info.values.get(type)
+                if (!values.containsKey(type)) values.put(type, TreeMap())
+                val ll = values.get(type)!!
+                ll.put(k, v)
+                if (ll.size > cCount) cCount = ll.size
+            }
+        }
+        return values
     }
 
     private fun readInfos(offsets: Array<Offset>): HashMap<Offset, Info> {
@@ -344,14 +336,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         val readTargetBearing = Utils.readTargetBearing(this)
         if (readTargetBearing != null) {
             val tbd = readTargetBearing.toDouble()
-            i.setValue(InfoType.AVG_SPEED_PROJ, Companion.calcAverageSpeed(f, t, tbd))
-            i.setValue(InfoType.GLOBAL_SPEED_PROJ, Companion.calcGlobalSpeed(f, t, tbd))
+            i.setValue(InfoType.AVG_SPEED_PROJ, calcAverageSpeed(f, t, tbd))
+            i.setValue(InfoType.GLOBAL_SPEED_PROJ, calcGlobalSpeed(f, t, tbd))
 
-            i.setValue(InfoType.GLOBAL_DIST_PROJ, Companion.calcGlobalDist(f, t, tbd))
-            i.setValue(InfoType.SUM_DIST_PROJ, Companion.calcSumDist(f, t, tbd))
+            i.setValue(InfoType.GLOBAL_DIST_PROJ, calcGlobalDist(f, t, tbd))
+            i.setValue(InfoType.SUM_DIST_PROJ, calcSumDist(f, t, tbd))
 
         }
-        i.setValue(InfoType.BEARING, Companion.calcAvgBearing(f, t))
+        i.setValue(InfoType.BEARING, calcAvgBearing(f, t))
         return i
     }
 
@@ -392,7 +384,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         val inflater = menuInflater
         inflater.inflate(R.menu.main_menu, menu)
 
-        val item = menu?.findItem(R.id.switch_item);
+        val item = menu?.findItem(R.id.switch_item)
         val switch = item?.actionView?.findViewById<Switch>(R.id.switchForActionBar)
 
         switch?.isChecked = isMyServiceRunning(LocationUpdatesService::class.java)
@@ -540,7 +532,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
                 GlobalScope.launch {
                     val dao = WindstonApp.database.locationDao()
-                    val loc = dao.findByLatLng(lat, lng);
+                    val loc = dao.findByLatLng(lat, lng)
                     if (this@MapsActivity.removeMode) {
                         if (loc.size == 1) {
                             dao.delete(loc.get(0))
@@ -630,7 +622,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
                     }
 
                     for (key in remainingKeys) {
-                        removeMarker(key);
+                        removeMarker(key)
                     }
                 }
             }
@@ -655,7 +647,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         }
 
         for (m in allMarkers) {
-            if (last == null || Companion.milesBetween(m, last!!) > minDistNm) {
+            if (last == null || milesBetween(m, last!!) > minDistNm) {
                 addIt(m)
             }
         }
