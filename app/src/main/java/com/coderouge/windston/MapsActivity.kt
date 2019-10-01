@@ -14,7 +14,10 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
+import android.widget.LinearLayout.*
+import android.widget.LinearLayout.LayoutParams.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
@@ -145,13 +148,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
 
         configureChangeLocation()
 
-        this.createInfoTable()
+//        this.refreshInfoTable()
 
         findViewById<TextView>(R.id.lastSentDate).setOnClickListener { displayLastSentDialog() }
-        refreshMinDate()
+//        refreshMinDate()
 
         configureTargetBearing()
-        refreshTargetBearing()
+//        refreshTargetBearing()
+
+        refresh()
     }
 
     private fun configureTargetBearing() {
@@ -245,21 +250,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
     }
 
 
-    private fun createInfoTable() {
-
-
-        val table = this.findViewById<LegacyTableView>(R.id.legacy_table_view)
-        table.setContentTextSize(40)
-        table.setContentTextAlignment(CENTER)
-        table.setTitleTextAlignment(CENTER)
-        table.setTitleTextSize(40)
+    private fun refreshInfoTable() {
 
         //TODO: check order
         val offsets = Offset.values()
 
         GlobalScope.launch {
             val infos = readInfos(offsets)
-
 
             val values = TreeMap<InfoType, TreeMap<Offset, Double?>>()
             var cCount = 0
@@ -282,10 +279,25 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
             withContext(Dispatchers.Main) {
                 run {
 
+                    val container = this@MapsActivity.findViewById<LinearLayout>(R.id.legacy_table_view_container)
+                    fun legTab() = container.findViewById<LegacyTableView>(R.id.legacy_table_view)
+
+                    legTab().let { l ->  container.removeView(l)}
+
+                    layoutInflater.inflate(R.layout.leg_table, container)
+
+                    val table = legTab()
+                    table.resetVariables() //omg
+                    table.setContentTextSize(40)
+                    table.setContentTextAlignment(CENTER)
+                    table.setTitleTextAlignment(CENTER)
+                    table.setTitleTextSize(40)
+
                     LegacyTableView.insertLegacyTitle("type", *offf.map { v ->  v.disp}.toTypedArray())
                     table.setTitle(LegacyTableView.readLegacyTitle())
 
                     table.setContent(LegacyTableView.readLegacyContent())
+
                     table.build();
                 }
             }
@@ -594,6 +606,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMapLon
         refreshTargetText()
         refreshTargetBearing()
         refreshOptionsVisibility()
+        refreshInfoTable()
 
     }
 

@@ -18,11 +18,14 @@
 
         <include layout="@layout/options" />
 
-        <com.levitnudi.legacytableview.LegacyTableView
-            android:id="@+id/legacy_table_view"
+        <LinearLayout
+            android:id="@+id/legacy_table_view_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/colorPrimary" />
+            android:orientation="vertical"
+            />
+
+
     </LinearLayout>
 
 </ScrollView>

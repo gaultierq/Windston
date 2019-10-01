@@ -262,6 +262,11 @@ public class LocationUpdatesService extends Service {
 
     private void onNewLocation(final Location location) {
         Log.w(TAG, "New location: " + location);
+        float acc = location.getAccuracy();
+        if (acc > 100) {
+            Log.w(TAG, "skipping - accuracy=" + acc);
+            return;
+        }
 
         mLocation = location;
 
